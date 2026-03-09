@@ -1,0 +1,21 @@
+{
+  "tool_name": "search_web",
+  "tool_version": "2.0.1",
+  "call_id": "fdfca5fe-908f-4f18-bf02-412af5c129d1",
+  "task_id": "8a4ea31f-d57b-44af-b9bd-30f9cabb18c9",
+  "attempt": 2,
+  "timeout_ms": 8000,
+  "args": {
+    "query": "latest compliance requirements for export invoices"
+  },
+  "status": "error",
+  "error": {
+    "code": "RATE_LIMIT",
+    "message": "Upstream provider rate limit reached.",
+    "retryable": true,
+    "details": {
+      "retry_after_ms": 1500
+    }
+  },
+  "duration_ms": 8013
+}

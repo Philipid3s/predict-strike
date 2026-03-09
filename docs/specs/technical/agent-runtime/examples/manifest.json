@@ -1,0 +1,27 @@
+[
+  {
+    "file": "task.valid.json",
+    "schema": "../task.schema.json",
+    "valid": true
+  },
+  {
+    "file": "task.invalid.missing-goal.json",
+    "schema": "../task.schema.json",
+    "valid": false
+  },
+  {
+    "file": "tool.valid.success.json",
+    "schema": "../tool.contract.json",
+    "valid": true
+  },
+  {
+    "file": "tool.valid.error.json",
+    "schema": "../tool.contract.json",
+    "valid": true
+  },
+  {
+    "file": "tool.invalid.success-missing-result.json",
+    "schema": "../tool.contract.json",
+    "valid": false
+  }
+]

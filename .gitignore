@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment files — NEVER commit these
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor swap files
+*.swp
+*.swo
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+
+# Docker volumes (local) — add service-specific volume paths after stack selection
+postgres-data/
+
+# Temp
+tmp/
+.tmp/
+
+# Session handoff files
+# Keep the docs/template tracked, but do not share generated handoff logs.
+docs/sessions/*
+!docs/sessions/README.md
+!docs/sessions/handoff-template.md

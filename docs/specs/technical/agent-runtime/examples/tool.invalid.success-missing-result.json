@@ -1,0 +1,13 @@
+{
+  "tool_name": "get_customer",
+  "tool_version": "1.2.0",
+  "call_id": "1dc7ef38-7029-4a2e-b3ed-79b3d2db0f6c",
+  "task_id": "8a4ea31f-d57b-44af-b9bd-30f9cabb18c9",
+  "attempt": 1,
+  "timeout_ms": 12000,
+  "args": {
+    "customer_id": "cust-2002"
+  },
+  "status": "success",
+  "duration_ms": 90
+}

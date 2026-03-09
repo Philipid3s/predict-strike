@@ -1,0 +1,18 @@
+{
+  "tool_name": "get_customer",
+  "tool_version": "1.2.0",
+  "call_id": "0da67f36-a5bf-4e28-815f-726f3f0b918e",
+  "task_id": "8a4ea31f-d57b-44af-b9bd-30f9cabb18c9",
+  "attempt": 1,
+  "timeout_ms": 12000,
+  "args": {
+    "customer_id": "cust-1001"
+  },
+  "result": {
+    "customer_id": "cust-1001",
+    "name": "Contoso Pte Ltd",
+    "status": "active"
+  },
+  "status": "success",
+  "duration_ms": 241
+}

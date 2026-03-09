@@ -1,0 +1,19 @@
+# CODEOWNERS
+# Each line is a file pattern followed by one or more owners.
+# Owners are automatically requested for review when someone opens a PR.
+
+# Global fallback owner
+* @your-github-username
+
+# Frontend
+/frontend/ @your-github-username
+
+# Backend
+/backend/ @your-github-username
+
+# Infrastructure & CI
+/docker-compose*.yml @your-github-username
+/.github/ @your-github-username
+
+# Docs & specs
+/docs/ @your-github-username

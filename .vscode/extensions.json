@@ -1,0 +1,24 @@
+{
+  "recommendations": [
+    // YAML — for ownership.yml and docker-compose files
+    "redhat.vscode-yaml",
+
+    // Docker — for Dockerfile and compose editing
+    "ms-azuretools.vscode-docker",
+
+    // GitLens — useful when multiple agents commit; see who/what changed per line
+    "eamodio.gitlens",
+
+    // EditorConfig — enforces .editorconfig rules in the editor
+    "editorconfig.editorconfig",
+
+    // Markdown preview enhanced — for ADRs, agent contracts, handoff files
+    "shd101wyy.markdown-preview-enhanced",
+
+    // DotENV — syntax highlighting for .env.example files
+    "mikestead.dotenv",
+
+    // Prettier — code formatter, pairs with .prettierrc and editor.defaultFormatter setting
+    "esbenp.prettier-vscode"
+  ]
+}

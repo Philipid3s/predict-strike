@@ -1,0 +1,23 @@
+{
+  "contract_version": "1.0",
+  "task_id": "5d21a4fd-b80d-4f66-a4b5-4d6634d8a743",
+  "idempotency_key": "task-20260303-acme-002",
+  "correlation_id": "corr-req-8473",
+  "priority": "high",
+  "deadline_at": "2026-03-03T12:45:00Z",
+  "max_steps": 20,
+  "max_tool_calls": 25,
+  "max_cost_usd": 0.35,
+  "allowed_tools": [
+    "search_web"
+  ],
+  "input": {
+    "context": {
+      "account_id": "acct-1002"
+    }
+  },
+  "policy": {
+    "pii": "redact",
+    "tool_mode": "allowlist"
+  }
+}

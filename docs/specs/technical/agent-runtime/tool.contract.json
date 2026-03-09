@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-skeleton.local/docs/specs/technical/agent-runtime/tool.contract.json",
+  "title": "Agent Tool Invocation Contract",
+  "description": "Canonical request/response contract for tool calls made by the agent runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tool_name",
+    "tool_version",
+    "call_id",
+    "task_id",
+    "attempt",
+    "timeout_ms",
+    "args",
+    "status",
+    "duration_ms"
+  ],
+  "properties": {
+    "tool_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "tool_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "call_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "task_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    },
+    "timeout_ms": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "args": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "partial",
+        "error"
+      ]
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "TIMEOUT",
+            "RATE_LIMIT",
+            "NETWORK",
+            "INVALID_INPUT",
+            "NOT_FOUND",
+            "POLICY_DENIED",
+            "UNAUTHORIZED",
+            "FORBIDDEN",
+            "INTERNAL"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "error"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "error"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "success",
+              "partial"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "result"
+        ]
+      }
+    }
+  ]
+}

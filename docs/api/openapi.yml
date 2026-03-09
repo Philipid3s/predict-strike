@@ -1,0 +1,1008 @@
+openapi: 3.1.0
+info:
+  title: Predict Strike API
+  version: 0.1.0
+  description: |
+    Initial backend contract for the Predict Strike MVP.
+
+    This contract is intentionally limited to health, signal snapshot,
+    Pizza Index activity monitoring, transparent risk scoring, and
+    market-opportunity comparison endpoints.
+    Some sources still fall back to stub data, but Pizza Index activity now
+    supports a live PizzINT dashboard primary path with quota-controlled
+    SerpApi fallback, and market opportunities use Polymarket Gamma with a
+    `pizzint.watch` market-feed fallback when Gamma is inaccessible.
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+
+tags:
+  - name: health
+    description: Service health and readiness
+  - name: signals
+    description: Current normalized signal snapshots
+  - name: pizza-index
+    description: Pizza Index targets, activity snapshots, and aggregate output
+  - name: risk
+    description: Conflict-risk scoring
+  - name: markets
+    description: Prediction-market comparison outputs
+  - name: alerts
+    description: Analyst-facing alert evaluation and history
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Service health check
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              examples:
+                default:
+                  value:
+                    status: ok
+                    service: predict-strike-api
+                    version: 0.1.0
+
+  /api/v1/signals/latest:
+    get:
+      tags: [signals]
+      summary: Get the latest normalized signal snapshot
+      operationId: getLatestSignals
+      responses:
+        "200":
+          description: Latest snapshot returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignalSnapshot"
+              examples:
+                default:
+                  value:
+                    generated_at: "2026-03-07T09:00:00Z"
+                    region_focus: global
+                    features:
+                      flight_anomaly: 0.68
+                      notam_spike: 0.34
+                      satellite_buildup: 0.21
+                      news_volume: 0.57
+                      osint_activity: 0.46
+                      pizza_index: 0.12
+                    sources:
+                      - name: OpenSky Network
+                        status: active
+                        mode: live
+                        last_checked_at: "2026-03-07T08:55:00Z"
+                      - name: NOTAM Feed
+                        status: degraded
+                        mode: fallback
+                        last_checked_at: "2026-03-07T08:54:00Z"
+                      - name: GDELT
+                        status: degraded
+                        mode: fallback
+                        last_checked_at: "2026-03-07T08:50:00Z"
+                      - name: Satellite Monitoring
+                        status: planned
+                        mode: static_baseline
+                        last_checked_at: null
+                      - name: Social OSINT
+                        status: planned
+                        mode: static_baseline
+                        last_checked_at: null
+                      - name: Pizza Index Activity
+                        status: planned
+                        mode: static_baseline
+                        last_checked_at: null
+
+  /api/v1/signals/refresh:
+    post:
+      tags: [signals]
+      summary: Force a fresh collection pass and persist a new signal snapshot
+      operationId: refreshSignals
+      responses:
+        "200":
+          description: Signal snapshot refreshed and persisted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignalSnapshot"
+              examples:
+                default:
+                  value:
+                    generated_at: "2026-03-07T09:05:00Z"
+                    region_focus: global
+                    features:
+                      flight_anomaly: 0.72
+                      notam_spike: 0.34
+                      satellite_buildup: 0.21
+                      news_volume: 0.57
+                      osint_activity: 0.46
+                      pizza_index: 0.12
+                    sources:
+                      - name: OpenSky Network
+                        status: active
+                        mode: live
+                        last_checked_at: "2026-03-07T09:05:00Z"
+                      - name: NOTAM Feed
+                        status: degraded
+                        mode: fallback
+                        last_checked_at: "2026-03-07T09:05:00Z"
+                      - name: GDELT
+                        status: degraded
+                        mode: fallback
+                        last_checked_at: "2026-03-07T09:05:00Z"
+                      - name: Satellite Monitoring
+                        status: planned
+                        mode: static_baseline
+                        last_checked_at: null
+                      - name: Social OSINT
+                        status: planned
+                        mode: static_baseline
+                        last_checked_at: null
+                      - name: Pizza Index Activity
+                        status: planned
+                        mode: static_baseline
+                        last_checked_at: null
+
+  /api/v1/pizza-index/targets:
+    get:
+      tags: [pizza-index]
+      summary: List monitored Pizza Index targets
+      description: Returns the fixed monitored target registry used by the Pizza Index collector, including the preserved Google Maps place links used for fallback targeting.
+      operationId: getPizzaIndexTargets
+      responses:
+        "200":
+          description: Pizza Index targets returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PizzaIndexTargetsResponse"
+              examples:
+                default:
+                  value:
+                    generated_at: "2026-03-07T13:40:00Z"
+                    targets:
+                      - target_id: dominos_pentagon_city
+                        display_name: "Domino's Pizza - Pentagon City"
+                        category: pizza
+                        priority_weight: 1.0
+                        location_cluster: pentagon-city
+                        google_maps_url: "https://www.google.com/maps/place/Domino's+Pizza/@38.8627308,-77.0879692,17z/data=!3m1!4b1"
+                        active: true
+                      - target_id: papa_johns_pentagon_city
+                        display_name: "Papa Johns Pizza - Pentagon City"
+                        category: pizza
+                        priority_weight: 0.95
+                        location_cluster: pentagon-city
+                        google_maps_url: "https://www.google.com/maps/place/Papa+Johns+Pizza/@38.8292633,-77.1901741,11.83z/data=!4m6!3m5!1s0x89b7b77f69c14da3:0xa3bad34a334f286f!8m2!3d38.8606821!4d-77.0922272!16s%2Fg%2F11t104lmtl?entry=ttu&g_ep=EgoyMDI1MDYxNy4wIKXMDSoASAFQAw%3D%3D"
+                        active: true
+                      - target_id: we_the_pizza_pentagon_row
+                        display_name: "We The Pizza - Pentagon Row"
+                        category: pizza
+                        priority_weight: 0.9
+                        location_cluster: pentagon-row
+                        google_maps_url: "https://www.google.com/maps/place/We,+The+Pizza/@38.8663614,-77.0588449,15.76z/data=!3m1!5s0x89b7b72f331803b7:0x7edf0a3adffa41c8!4m6!3m5!1s0x89b7b72f38e95a4b:0xc933eda7e98cbcb0!8m2!3d38.8551791!4d-77.049733!16s%2Fg%2F1q62g66vf?entry=ttu&g_ep=EgoyMDI1MDYxNi4wIKXMDSoASAFQAw%3D%3D"
+                        active: true
+                      - target_id: extreme_pizza_pentagon_row
+                        display_name: "Extreme Pizza - Pentagon Row"
+                        category: pizza
+                        priority_weight: 0.85
+                        location_cluster: pentagon-row
+                        google_maps_url: "https://www.google.com/maps/place/Extreme+Pizza/@38.8602396,-77.0585603,17z/data=!3m1!4b1!4m6!3m5!1s0x89b7b72778ab8871:0x3762c646ac6ddfe1!8m2!3d38.8602396!4d-77.0559854!16s%2Fg%2F12llsn19l?entry=ttu&g_ep=EgoyMDI1MDYxNi4wIKXMDSoASAFQAw%3D%3D"
+                        active: true
+                      - target_id: wiseguy_pizza_rosslyn
+                        display_name: "Wiseguy Pizza - Rosslyn"
+                        category: pizza
+                        priority_weight: 0.8
+                        location_cluster: rosslyn
+                        google_maps_url: "https://www.google.com/maps/place/Wiseguy+Pizza+Rosslyn"
+                        active: true
+
+  /api/v1/pizza-index/targets/{target_id}/activity:
+    get:
+      tags: [pizza-index]
+      summary: Get a single Pizza Index target activity snapshot
+      description: |
+        Returns the latest normalized activity snapshot for a monitored target.
+        The backend uses the PizzINT dashboard JSON as the primary upstream and
+        only falls back to SerpApi when the upstream fails, omits the target,
+        or returns no meaningful busyness signal.
+      operationId: getPizzaIndexTargetActivity
+      parameters:
+        - in: path
+          name: target_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Pizza Index target activity returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PizzaIndexTargetActivity"
+              examples:
+                default:
+                  value:
+                    target_id: dominos_pentagon_city
+                    display_name: "Domino's Pizza - Pentagon City"
+                    provider: pizzint
+                    provider_mode: primary
+                    collected_at: "2026-03-07T13:40:00Z"
+                    data_quality: full
+                    capture_status: pizzint_dashboard_ok
+                    is_open: true
+                    current_busyness_percent: 78
+                    usual_busyness_percent: 45
+                    busyness_delta_percent: 33
+                    current_busyness_label: busier_than_usual
+                    rating: null
+                    reviews_count: null
+                    address: null
+                    google_maps_url: "https://www.google.com/maps/place/Domino's+Pizza/@38.8627308,-77.0879692,17z/data=!3m1!4b1"
+        "404":
+          description: Target ID is not present in the Pizza Index registry
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [detail]
+                properties:
+                  detail:
+                    type: string
+              examples:
+                default:
+                  value:
+                    detail: "Unknown pizza-index target: unknown"
+
+  /api/v1/pizza-index/latest:
+    get:
+      tags: [pizza-index]
+      summary: Get the latest aggregate Pizza Index snapshot
+      description: Returns the cached aggregate Pizza Index snapshot, derived from current per-target activity observations.
+      operationId: getLatestPizzaIndex
+      responses:
+        "200":
+          description: Pizza Index snapshot returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PizzaIndexSnapshotResponse"
+              examples:
+                default:
+                  value:
+                    generated_at: "2026-03-07T13:40:30Z"
+                    pizza_index: 0.46
+                    pizza_index_confidence: 0.92
+                    quality_summary:
+                      full_count: 4
+                      partial_count: 1
+                      unavailable_count: 0
+                    targets:
+                      - target_id: dominos_pentagon_city
+                        display_name: "Domino's Pizza - Pentagon City"
+                        target_score: 0.66
+                        weight: 1.0
+                        data_quality: full
+                        provider: pizzint
+                      - target_id: papa_johns_pentagon_city
+                        display_name: "Papa Johns Pizza - Pentagon City"
+                        target_score: 0.18
+                        weight: 0.95
+                        data_quality: partial
+                        provider: serpapi
+
+  /api/v1/pizza-index/refresh:
+    post:
+      tags: [pizza-index]
+      summary: Force a refresh of the aggregate Pizza Index snapshot
+      description: Forces a fresh collection pass across all active Pizza Index targets and persists the resulting snapshot.
+      operationId: refreshPizzaIndex
+      responses:
+        "200":
+          description: Pizza Index snapshot refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PizzaIndexSnapshotResponse"
+              examples:
+                default:
+                  value:
+                    generated_at: "2026-03-07T13:41:00Z"
+                    pizza_index: 0.51
+                    pizza_index_confidence: 1.0
+                    quality_summary:
+                      full_count: 4
+                      partial_count: 0
+                      unavailable_count: 1
+                    targets:
+                      - target_id: dominos_pentagon_city
+                        display_name: "Domino's Pizza - Pentagon City"
+                        target_score: 0.66
+                        weight: 1.0
+                        data_quality: full
+                        provider: pizzint
+
+  /api/v1/risk/score:
+    post:
+      tags: [risk]
+      summary: Score a feature set using the MVP weighted model
+      operationId: scoreRisk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RiskScoreRequest"
+            examples:
+              default:
+                value:
+                  features:
+                    flight_anomaly: 0.68
+                    notam_spike: 0.34
+                    satellite_buildup: 0.21
+                    news_volume: 0.57
+                    osint_activity: 0.46
+                    pizza_index: 0.12
+      responses:
+        "200":
+          description: Risk score computed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskScoreResponse"
+              examples:
+                default:
+                  value:
+                    score: 0.42
+                    classification: watch
+                    breakdown:
+                      - feature: flight_anomaly
+                        value: 0.68
+                        weight: 0.3
+                        contribution: 0.204
+                      - feature: notam_spike
+                        value: 0.34
+                        weight: 0.15
+                        contribution: 0.051
+                      - feature: satellite_buildup
+                        value: 0.21
+                        weight: 0.15
+                        contribution: 0.0315
+                      - feature: news_volume
+                        value: 0.57
+                        weight: 0.2
+                        contribution: 0.114
+                      - feature: osint_activity
+                        value: 0.46
+                        weight: 0.1
+                        contribution: 0.046
+                      - feature: pizza_index
+                        value: 0.12
+                        weight: 0.1
+                        contribution: 0.012
+                    thresholds:
+                      watch: 0.4
+                      alert: 0.65
+        "422":
+          description: Invalid scoring request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/markets/opportunities:
+    get:
+      tags: [markets]
+      summary: Get current model-versus-market pricing opportunities
+      description: |
+        Collects geopolitical market probabilities from Polymarket Gamma when
+        reachable. If Gamma is inaccessible from the runtime, the backend falls
+        back to the `pizzint.watch` breaking-markets API before degrading to
+        bootstrap sample data.
+      operationId: getMarketOpportunities
+      responses:
+        "200":
+          description: Market opportunities returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketOpportunitiesResponse"
+              examples:
+                default:
+                  value:
+                    generated_at: "2026-03-07T09:00:00Z"
+                    source:
+                      name: Polymarket
+                      status: active
+                      mode: live
+                      last_checked_at: "2026-03-07T09:00:00Z"
+                    upstream: gamma
+                    opportunities:
+                      - market_id: pol-001
+                        question: "Will a direct strike occur in region X before June 2026?"
+                        market_probability: 0.31
+                        model_probability: 0.42
+                        edge: 0.11
+                        signal: BUY
+                      - market_id: pol-002
+                        question: "Will emergency mobilization be announced in region Y before May 2026?"
+                        market_probability: 0.58
+                        model_probability: 0.41
+                        edge: -0.17
+                        signal: SELL
+
+  /api/v1/alerts:
+    get:
+      tags: [alerts]
+      summary: Get persisted analyst alert history
+      operationId: getAlerts
+      responses:
+        "200":
+          description: Alert history returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertHistoryResponse"
+              examples:
+                default:
+                  value:
+                    generated_at: "2026-03-07T09:10:00Z"
+                    alerts:
+                      - id: "alert-001"
+                        created_at: "2026-03-07T09:08:00Z"
+                        market_id: "poly-market-1"
+                        question: "Will a major cross-border strike occur in the Middle East within 30 days?"
+                        market_probability: 0.43
+                        model_probability: 0.61
+                        edge: 0.18
+                        signal: BUY
+                        status: open
+
+  /api/v1/alerts/evaluate:
+    post:
+      tags: [alerts]
+      summary: Evaluate current opportunities and persist analyst alerts
+      operationId: evaluateAlerts
+      responses:
+        "200":
+          description: Alert evaluation completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertEvaluationResponse"
+              examples:
+                default:
+                  value:
+                    evaluated_at: "2026-03-07T09:10:00Z"
+                    created_count: 1
+                    alerts:
+                      - id: "alert-001"
+                        created_at: "2026-03-07T09:10:00Z"
+                        market_id: "poly-market-1"
+                        question: "Will a major cross-border strike occur in the Middle East within 30 days?"
+                        market_probability: 0.43
+                        model_probability: 0.61
+                        edge: 0.18
+                        signal: BUY
+                        status: open
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [status, service, version]
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: predict-strike-api
+        version:
+          type: string
+          example: 0.1.0
+
+    FeatureVector:
+      type: object
+      additionalProperties: false
+      required:
+        - flight_anomaly
+        - notam_spike
+        - satellite_buildup
+        - news_volume
+        - osint_activity
+        - pizza_index
+      properties:
+        flight_anomaly:
+          type: number
+          minimum: 0
+          maximum: 1
+        notam_spike:
+          type: number
+          minimum: 0
+          maximum: 1
+        satellite_buildup:
+          type: number
+          minimum: 0
+          maximum: 1
+        news_volume:
+          type: number
+          minimum: 0
+          maximum: 1
+        osint_activity:
+          type: number
+          minimum: 0
+          maximum: 1
+        pizza_index:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    FeatureWeights:
+      type: object
+      additionalProperties: false
+      properties:
+        flight_anomaly:
+          type: number
+          minimum: 0
+          maximum: 1
+        notam_spike:
+          type: number
+          minimum: 0
+          maximum: 1
+        satellite_buildup:
+          type: number
+          minimum: 0
+          maximum: 1
+        news_volume:
+          type: number
+          minimum: 0
+          maximum: 1
+        osint_activity:
+          type: number
+          minimum: 0
+          maximum: 1
+        pizza_index:
+          type: number
+          minimum: 0
+          maximum: 1
+      description: |
+        Optional override weights for the scoring pass. The backend may normalize
+        these before calculating the final score.
+
+    SignalSource:
+      type: object
+      additionalProperties: false
+      required: [name, status, mode]
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum: [planned, active, degraded]
+        mode:
+          type: string
+          enum: [live, fallback, static_baseline]
+        last_checked_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+
+    SignalSnapshot:
+      type: object
+      additionalProperties: false
+      required: [generated_at, region_focus, features, sources]
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        region_focus:
+          type: string
+          description: Geographic or analytic focus of the current snapshot
+        features:
+          $ref: "#/components/schemas/FeatureVector"
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SignalSource"
+
+    RiskScoreRequest:
+      type: object
+      additionalProperties: false
+      required: [features]
+      properties:
+        features:
+          $ref: "#/components/schemas/FeatureVector"
+        weights:
+          $ref: "#/components/schemas/FeatureWeights"
+
+    RiskBreakdownItem:
+      type: object
+      additionalProperties: false
+      required: [feature, value, weight, contribution]
+      properties:
+        feature:
+          type: string
+          enum:
+            - flight_anomaly
+            - notam_spike
+            - satellite_buildup
+            - news_volume
+            - osint_activity
+            - pizza_index
+        value:
+          type: number
+          minimum: 0
+          maximum: 1
+        weight:
+          type: number
+          minimum: 0
+          maximum: 1
+        contribution:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    RiskThresholds:
+      type: object
+      additionalProperties: false
+      required: [watch, alert]
+      properties:
+        watch:
+          type: number
+          minimum: 0
+          maximum: 1
+        alert:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    RiskScoreResponse:
+      type: object
+      additionalProperties: false
+      required: [score, classification, breakdown, thresholds]
+      properties:
+        score:
+          type: number
+          minimum: 0
+          maximum: 1
+        classification:
+          type: string
+          enum: [monitor, watch, alert]
+        breakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/RiskBreakdownItem"
+        thresholds:
+          $ref: "#/components/schemas/RiskThresholds"
+
+    MarketOpportunity:
+      type: object
+      additionalProperties: false
+      required:
+        - market_id
+        - question
+        - market_probability
+        - model_probability
+        - edge
+        - signal
+      properties:
+        market_id:
+          type: string
+        question:
+          type: string
+        market_probability:
+          type: number
+          minimum: 0
+          maximum: 1
+        model_probability:
+          type: number
+          minimum: 0
+          maximum: 1
+        edge:
+          type: number
+          minimum: -1
+          maximum: 1
+        signal:
+          type: string
+          enum: [BUY, HOLD, SELL]
+
+    MarketOpportunitiesResponse:
+      type: object
+      additionalProperties: false
+      required: [generated_at, source, upstream, opportunities]
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        source:
+          $ref: "#/components/schemas/SignalSource"
+        upstream:
+          type: string
+          enum: [gamma, pizzint, bootstrap]
+        opportunities:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarketOpportunity"
+
+    PizzaIndexTarget:
+      type: object
+      additionalProperties: false
+      required:
+        - target_id
+        - display_name
+        - category
+        - priority_weight
+        - location_cluster
+        - google_maps_url
+        - active
+      properties:
+        target_id:
+          type: string
+        display_name:
+          type: string
+        category:
+          type: string
+        priority_weight:
+          type: number
+          exclusiveMinimum: 0
+        location_cluster:
+          type: string
+        google_maps_url:
+          type: string
+        active:
+          type: boolean
+
+    PizzaIndexTargetsResponse:
+      type: object
+      additionalProperties: false
+      required: [generated_at, targets]
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        targets:
+          type: array
+          items:
+            $ref: "#/components/schemas/PizzaIndexTarget"
+
+    PizzaIndexTargetActivity:
+      type: object
+      additionalProperties: false
+      required:
+        - target_id
+        - display_name
+        - provider
+        - provider_mode
+        - collected_at
+        - data_quality
+        - capture_status
+        - google_maps_url
+      properties:
+        target_id:
+          type: string
+        display_name:
+          type: string
+        provider:
+          type: string
+          enum: [pizzint, serpapi, stub]
+        provider_mode:
+          type: string
+          enum: [primary, fallback, stub]
+        collected_at:
+          type: string
+          format: date-time
+        data_quality:
+          type: string
+          enum: [full, partial, unavailable]
+        capture_status:
+          type: string
+        is_open:
+          type:
+            - boolean
+            - "null"
+        current_busyness_percent:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 100
+        usual_busyness_percent:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 100
+        busyness_delta_percent:
+          type:
+            - integer
+            - "null"
+          minimum: -100
+          maximum: 100
+        current_busyness_label:
+          type:
+            - string
+            - "null"
+        rating:
+          type:
+            - number
+            - "null"
+          minimum: 0
+          maximum: 5
+        reviews_count:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+        address:
+          type:
+            - string
+            - "null"
+        google_maps_url:
+          type: string
+
+    PizzaIndexQualitySummary:
+      type: object
+      additionalProperties: false
+      required: [full_count, partial_count, unavailable_count]
+      properties:
+        full_count:
+          type: integer
+          minimum: 0
+        partial_count:
+          type: integer
+          minimum: 0
+        unavailable_count:
+          type: integer
+          minimum: 0
+
+    PizzaIndexTargetContribution:
+      type: object
+      additionalProperties: false
+      required:
+        - target_id
+        - display_name
+        - target_score
+        - weight
+        - data_quality
+        - provider
+      properties:
+        target_id:
+          type: string
+        display_name:
+          type: string
+        target_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        weight:
+          type: number
+          exclusiveMinimum: 0
+        data_quality:
+          type: string
+          enum: [full, partial, unavailable]
+        provider:
+          type: string
+          enum: [pizzint, serpapi, stub]
+
+    PizzaIndexSnapshotResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - generated_at
+        - pizza_index
+        - pizza_index_confidence
+        - quality_summary
+        - targets
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        pizza_index:
+          type: number
+          minimum: 0
+          maximum: 1
+        pizza_index_confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        quality_summary:
+          $ref: "#/components/schemas/PizzaIndexQualitySummary"
+        targets:
+          type: array
+          items:
+            $ref: "#/components/schemas/PizzaIndexTargetContribution"
+
+    AlertRecord:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - created_at
+        - market_id
+        - question
+        - market_probability
+        - model_probability
+        - edge
+        - signal
+        - status
+      properties:
+        id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        market_id:
+          type: string
+        question:
+          type: string
+        market_probability:
+          type: number
+          minimum: 0
+          maximum: 1
+        model_probability:
+          type: number
+          minimum: 0
+          maximum: 1
+        edge:
+          type: number
+          minimum: -1
+          maximum: 1
+        signal:
+          type: string
+          enum: [BUY, HOLD, SELL]
+        status:
+          type: string
+          enum: [open, dismissed, resolved]
+
+    AlertHistoryResponse:
+      type: object
+      additionalProperties: false
+      required: [generated_at, alerts]
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlertRecord"
+
+    AlertEvaluationResponse:
+      type: object
+      additionalProperties: false
+      required: [evaluated_at, created_count, alerts]
+      properties:
+        evaluated_at:
+          type: string
+          format: date-time
+        created_count:
+          type: integer
+          minimum: 0
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlertRecord"
+
+    Error:
+      type: object
+      additionalProperties: false
+      required: [message]
+      properties:
+        message:
+          type: string
+        code:
+          type:
+            - string
+            - "null"

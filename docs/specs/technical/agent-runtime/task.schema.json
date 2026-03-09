@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-skeleton.local/docs/specs/technical/agent-runtime/task.schema.json",
+  "title": "Agent Task Envelope",
+  "description": "Canonical task submission contract for agent runtime execution.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "task_id",
+    "idempotency_key",
+    "correlation_id",
+    "priority",
+    "deadline_at",
+    "max_steps",
+    "max_tool_calls",
+    "max_cost_usd",
+    "allowed_tools",
+    "input",
+    "policy"
+  ],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "description": "Runtime contract version. Unknown major versions must be rejected.",
+      "pattern": "^1\\.[0-9]+$"
+    },
+    "task_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "normal",
+        "high"
+      ]
+    },
+    "deadline_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "max_steps": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "max_tool_calls": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "max_cost_usd": {
+      "type": "number",
+      "minimum": 0
+    },
+    "allowed_tools": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "uniqueItems": true
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "goal"
+      ],
+      "properties": {
+        "goal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "context": {
+          "type": "object",
+          "additionalProperties": true,
+          "default": {}
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pii",
+        "tool_mode"
+      ],
+      "properties": {
+        "pii": {
+          "type": "string",
+          "enum": [
+            "allow",
+            "redact",
+            "deny"
+          ]
+        },
+        "tool_mode": {
+          "type": "string",
+          "enum": [
+            "allowlist"
+          ]
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional non-functional metadata (tenant, tags, source system).",
+      "additionalProperties": true
+    }
+  }
+}

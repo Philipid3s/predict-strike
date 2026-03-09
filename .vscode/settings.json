@@ -1,0 +1,91 @@
+{
+  // ─── Editor ───────────────────────────────────────────────────────────────
+  // Consistent with .editorconfig: spaces, 2 indent, LF, final newline
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "[markdown]": {
+    "files.trimTrailingWhitespace": false
+  },
+
+  // ─── Format on save ───────────────────────────────────────────────────────
+  // Agents produce code — auto-format keeps diffs clean and prevents
+  // noisy reformatting commits when a human opens a file after an agent.
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": false,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // ─── File nesting (keeps explorer readable during agentic work) ───────────
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "*.ts": "${capture}.js, ${capture}.d.ts, ${capture}.test.ts, ${capture}.spec.ts",
+    "*.js": "${capture}.test.js, ${capture}.spec.js",
+    "docker-compose.yml": "docker-compose.*.yml",
+    ".env.example": ".env.*.example",
+    "AGENTS.md": "CLAUDE.md"
+  },
+
+  // ─── Git ──────────────────────────────────────────────────────────────────
+  // Agents commit frequently — keep git panel informative
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "git.enableSmartCommit": false,
+  "git.decorations.enabled": true,
+  "diffEditor.ignoreTrimWhitespace": false,
+
+  // ─── Explorer ─────────────────────────────────────────────────────────────
+  "explorer.confirmDelete": false,
+  "explorer.confirmDragAndDrop": false,
+
+  // ─── Search — exclude noise from agent-generated or gitignored paths ──────
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/coverage": true,
+    "**/.nyc_output": true,
+    "**/postgres-data": true,
+    "**/.next": true,
+    "**/.nuxt": true
+  },
+
+  // ─── Files to exclude from explorer ──────────────────────────────────────
+  "files.exclude": {
+    "**/.git": true,
+    "**/node_modules": true
+  },
+
+  // ─── Files to watch (limit watcher to avoid overhead on agentic writes) ───
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/coverage/**": true,
+    "**/postgres-data/**": true
+  },
+
+  // ─── Terminal ─────────────────────────────────────────────────────────────
+  // Agents run commands — keep terminal history long and scrollback readable
+  "terminal.integrated.scrollback": 5000,
+  "terminal.integrated.defaultProfile.windows": "Git Bash",
+
+  // ─── Breadcrumbs ──────────────────────────────────────────────────────────
+  // Useful when navigating agent-modified files across deep folder structures
+  "breadcrumbs.enabled": true,
+
+  // ─── Markdown ─────────────────────────────────────────────────────────────
+  // ADRs, agent contracts, handoff files — render well in preview
+  "markdown.preview.scrollEditorWithPreview": true,
+  "markdown.preview.scrollPreviewWithEditor": true,
+
+  // ─── YAML ─────────────────────────────────────────────────────────────────
+  // ownership.yml and compose files — keep schema validation active
+  "yaml.format.enable": true,
+  "yaml.validate": true
+}

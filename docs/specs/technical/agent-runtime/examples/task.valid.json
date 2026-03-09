@@ -1,0 +1,30 @@
+{
+  "contract_version": "1.0",
+  "task_id": "8a4ea31f-d57b-44af-b9bd-30f9cabb18c9",
+  "idempotency_key": "task-20260303-acme-001",
+  "correlation_id": "corr-req-8472",
+  "priority": "normal",
+  "deadline_at": "2026-03-03T12:30:00Z",
+  "max_steps": 30,
+  "max_tool_calls": 50,
+  "max_cost_usd": 0.5,
+  "allowed_tools": [
+    "search_web",
+    "get_customer"
+  ],
+  "input": {
+    "goal": "Generate customer-ready weekly account summary.",
+    "context": {
+      "account_id": "acct-1001",
+      "locale": "en-US"
+    }
+  },
+  "policy": {
+    "pii": "redact",
+    "tool_mode": "allowlist"
+  },
+  "metadata": {
+    "tenant_id": "acme",
+    "source_system": "orchestrator"
+  }
+}
