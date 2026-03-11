@@ -11,6 +11,9 @@ a compliance report. Does not modify implementation or specs directly.
 Read access:
 
 ```
+AGENTS.md
+docs/agents/**
+docs/sessions/**
 docs/specs/**
 docs/api/openapi.yml
 docs/adr/**
@@ -42,6 +45,9 @@ a passing QA report.
 
 - Task packet from orchestrator (objective + acceptance criteria)
 - Project specs in `docs/specs/`
+- Repository workflow policy in `AGENTS.md`
+- Agent contracts in `docs/agents/`
+- Session handoff artifacts in `docs/sessions/`
 - API spec: `docs/api/openapi.yml`
 - Relevant ADRs: `docs/adr/`
 - Implementation: `frontend/**`, `backend/**`

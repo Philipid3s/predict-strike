@@ -21,6 +21,7 @@ reserved for `Role: orchestrator`.
 - Task packet from orchestrator
 - API change summary from backend-agent
 - Architecture decision summaries from any specialist agent
+- ADR request or approval from orchestrator when a new decision record is needed
 
 ## Outputs
 
@@ -33,7 +34,8 @@ reserved for `Role: orchestrator`.
 - All acceptance criteria from the task packet met
 - No files modified outside `docs/**`
 - `docs/api/openapi.yml` is valid and consistent with backend changes
-- New ADR created for any significant architecture decision
+- New ADR created when the orchestrator requests or confirms a significant
+  architecture decision
 - Runtime spec updates stay aligned with ADR 0003 and ADR 0004
 
 ## Forbidden
@@ -41,3 +43,4 @@ reserved for `Role: orchestrator`.
 - Modifying `frontend/**`, `backend/**`, or infrastructure files
 - Deleting ADRs (mark as Deprecated or Superseded instead)
 - Approving API changes not confirmed by backend-agent
+- Creating or changing ADR direction without orchestrator approval

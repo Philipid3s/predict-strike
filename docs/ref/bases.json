@@ -1,0 +1,984 @@
+{
+  "bases": [
+    {
+      "type": "US",
+      "name": "Altus Air Force Base",
+      "country": "USA",
+      "lat": 34.66639,
+      "lon": -99.26806
+    },
+    {
+      "type": "US",
+      "name": "Joint Base Anacostia-Bolling",
+      "country": "USA",
+      "lat": 38.84278,
+      "lon": -77.01611
+    },
+    {
+      "type": "US",
+      "name": "Joint Base Andrews-Naval Air Facility Washington",
+      "country": "USA",
+      "lat": 38.81083,
+      "lon": -76.86694
+    },
+    {
+      "type": "US",
+      "name": "Arnold Air Force Base",
+      "country": "USA",
+      "lat": 35.3925,
+      "lon": -86.08583
+    },
+    {
+      "type": "US",
+      "name": "Barksdale Air Force Base",
+      "country": "USA",
+      "lat": 32.50194,
+      "lon": -93.66278
+    },
+    {
+      "type": "US",
+      "name": "Beale Air Force Base",
+      "country": "USA",
+      "lat": 39.13611,
+      "lon": -121.43639
+    },
+    {
+      "type": "US",
+      "name": "Cannon Air Force Base",
+      "country": "USA",
+      "lat": 34.38278,
+      "lon": -103.32222
+    },
+    {
+      "type": "US",
+      "name": "Joint Base Charleston",
+      "country": "USA",
+      "lat": 32.89861,
+      "lon": -80.04056
+    },
+    {
+      "type": "US",
+      "name": "Columbus Air Force Base",
+      "country": "USA",
+      "lat": 33.64389,
+      "lon": -88.44389
+    },
+    {
+      "type": "US",
+      "name": "Creech Air Force Base",
+      "country": "USA",
+      "lat": 36.58722,
+      "lon": -115.67333
+    },
+    {
+      "type": "US",
+      "name": "Davis–Monthan Air Force Base",
+      "country": "USA",
+      "lat": 32.16639,
+      "lon": -110.88306
+    },
+    {
+      "type": "US",
+      "name": "Dover Air Force Base",
+      "country": "USA",
+      "lat": 39.12833,
+      "lon": -75.46472
+    },
+    {
+      "type": "US",
+      "name": "Dyess Air Force Base",
+      "country": "USA",
+      "lat": 32.42083,
+      "lon": -99.85472
+    },
+    {
+      "type": "US",
+      "name": "Edwards Air Force Base",
+      "country": "USA",
+      "lat": 34.90556,
+      "lon": -117.88361
+    },
+    {
+      "type": "US",
+      "name": "Eglin Air Force Base",
+      "country": "USA",
+      "lat": 30.483,
+      "lon": -86.533
+    },
+    {
+      "type": "US",
+      "name": "Ellsworth Air Force Base",
+      "country": "USA",
+      "lat": 44.145,
+      "lon": -103.10361
+    },
+    {
+      "type": "US",
+      "name": "Francis E. Warren Air Force Base",
+      "country": "USA",
+      "lat": 41.13306,
+      "lon": -104.86694
+    },
+    {
+      "type": "US",
+      "name": "Fairchild Air Force Base",
+      "country": "USA",
+      "lat": 47.615,
+      "lon": -117.65556
+    },
+    {
+      "type": "US",
+      "name": "Fort George G. Meade",
+      "country": "USA",
+      "lat": 39.10694,
+      "lon": -76.74306
+    },
+    {
+      "type": "US",
+      "name": "Gila Bend Air Force Auxiliary Field",
+      "country": "USA",
+      "lat": 32.8875,
+      "lon": -112.72
+    },
+    {
+      "type": "US",
+      "name": "Goodfellow Air Force Base",
+      "country": "USA",
+      "lat": 31.42944,
+      "lon": -100.39889
+    },
+    {
+      "type": "US",
+      "name": "Grand Forks Air Force Base",
+      "country": "USA",
+      "lat": 47.96111,
+      "lon": -97.40111
+    },
+    {
+      "type": "US",
+      "name": "Hanscom Air Force Base",
+      "country": "USA",
+      "lat": 42.47,
+      "lon": -71.28917
+    },
+    {
+      "type": "US",
+      "name": "Hill Air Force Base",
+      "country": "USA",
+      "lat": 41.12389,
+      "lon": -111.97278
+    },
+    {
+      "type": "US",
+      "name": "Homey Airport",
+      "country": "USA",
+      "lat": 37.23333,
+      "lon": -115.80833
+    },
+    {
+      "type": "US",
+      "name": "Holloman Air Force Base",
+      "country": "USA",
+      "lat": 32.8525,
+      "lon": -106.10639
+    },
+    {
+      "type": "US",
+      "name": "Hurlburt Field",
+      "country": "USA",
+      "lat": 30.42778,
+      "lon": -86.68944
+    },
+    {
+      "type": "US",
+      "name": "Keesler Air Force Base",
+      "country": "USA",
+      "lat": 30.41139,
+      "lon": -88.92361
+    },
+    {
+      "type": "US",
+      "name": "Kegelman Air Force Auxiliary Field",
+      "country": "USA",
+      "lat": 36.73806,
+      "lon": -98.12611
+    },
+    {
+      "type": "US",
+      "name": "Kirtland Air Force Base",
+      "country": "USA",
+      "lat": 35.04028,
+      "lon": -106.60917
+    },
+    {
+      "type": "US",
+      "name": "Joint Base Langley–Eustis",
+      "country": "USA",
+      "lat": 37.08278,
+      "lon": -76.36056
+    },
+    {
+      "type": "US",
+      "name": "Laughlin Air Force Base",
+      "country": "USA",
+      "lat": 29.35944,
+      "lon": -100.77806
+    },
+    {
+      "type": "US",
+      "name": "Joint Base Lewis-McChord",
+      "country": "USA",
+      "lat": 47.1475,
+      "lon": -122.47944
+    },
+    {
+      "type": "US",
+      "name": "Little Rock Air Force Base",
+      "country": "USA",
+      "lat": 34.91694,
+      "lon": -92.14639
+    },
+    {
+      "type": "US",
+      "name": "Luke Air Force Base",
+      "country": "USA",
+      "lat": 33.535,
+      "lon": -112.38306
+    },
+    {
+      "type": "US",
+      "name": "MacDill Air Force Base",
+      "country": "USA",
+      "lat": 27.84944,
+      "lon": -82.52111
+    },
+    {
+      "type": "US",
+      "name": "Malmstrom Air Force Base",
+      "country": "USA",
+      "lat": 47.50472,
+      "lon": -111.18722
+    },
+    {
+      "type": "US",
+      "name": "Maxwell Air Force Base",
+      "country": "USA",
+      "lat": 32.37917,
+      "lon": -86.3625
+    },
+    {
+      "type": "US",
+      "name": "McConnell Air Force Base",
+      "country": "USA",
+      "lat": 37.62306,
+      "lon": -97.26722
+    },
+    {
+      "type": "US",
+      "name": "Joint Base McGuire–Dix–Lakehurst",
+      "country": "USA",
+      "lat": 40.01917,
+      "lon": -74.52278
+    },
+    {
+      "type": "US",
+      "name": "Minot Air Force Base",
+      "country": "USA",
+      "lat": 48.41583,
+      "lon": -101.35806
+    },
+    {
+      "type": "US",
+      "name": "Moody Air Force Base",
+      "country": "USA",
+      "lat": 30.96778,
+      "lon": -83.19278
+    },
+    {
+      "type": "US",
+      "name": "Mountain Home Air Force Base",
+      "country": "USA",
+      "lat": 43.04361,
+      "lon": -115.8725
+    },
+    {
+      "type": "US",
+      "name": "Nellis Air Force Base",
+      "country": "USA",
+      "lat": 36.23611,
+      "lon": -115.03417
+    },
+    {
+      "type": "US",
+      "name": "Offutt Air Force Base",
+      "country": "USA",
+      "lat": 41.11944,
+      "lon": -95.90861
+    },
+    {
+      "type": "US",
+      "name": "Pope Field",
+      "country": "USA",
+      "lat": 35.17083,
+      "lon": -79.01444
+    },
+    {
+      "type": "US",
+      "name": "Robins Air Force Base",
+      "country": "USA",
+      "lat": 32.64,
+      "lon": -83.59167
+    },
+    {
+      "type": "US",
+      "name": "Joint Base San Antonio",
+      "country": "USA",
+      "lat": 29.44889,
+      "lon": -98.44889
+    },
+    {
+      "type": "US",
+      "name": "Scott Air Force Base",
+      "country": "USA",
+      "lat": 38.54528,
+      "lon": -89.83528
+    },
+    {
+      "type": "US",
+      "name": "Seymour Johnson Air Force Base",
+      "country": "USA",
+      "lat": 35.33944,
+      "lon": -77.96056
+    },
+    {
+      "type": "US",
+      "name": "Shaw Air Force Base",
+      "country": "USA",
+      "lat": 33.97306,
+      "lon": -80.47278
+    },
+    {
+      "type": "US",
+      "name": "Sheppard Air Force Base",
+      "country": "USA",
+      "lat": 33.98889,
+      "lon": -98.49194
+    },
+    {
+      "type": "US",
+      "name": "Tinker Air Force Base",
+      "country": "USA",
+      "lat": 35.41472,
+      "lon": -97.38667
+    },
+    {
+      "type": "US",
+      "name": "Tonopah Test Range Airport",
+      "country": "USA",
+      "lat": 37.79472,
+      "lon": -116.77861
+    },
+    {
+      "type": "US",
+      "name": "Travis Air Force Base",
+      "country": "USA",
+      "lat": 38.26278,
+      "lon": -121.9275
+    },
+    {
+      "type": "US",
+      "name": "Tyndall Air Force Base",
+      "country": "USA",
+      "lat": 30.07861,
+      "lon": -85.57639
+    },
+    {
+      "type": "US",
+      "name": "United States Air Force Academy",
+      "country": "USA",
+      "lat": 38.99028,
+      "lon": -104.85833
+    },
+    {
+      "type": "US",
+      "name": "Whiteman Air Force Base",
+      "country": "USA",
+      "lat": 38.73,
+      "lon": -93.551
+    },
+    {
+      "type": "US",
+      "name": "Andersen Air Force Base",
+      "country": "Guam",
+      "lat": 13.584,
+      "lon": 144.924
+    },
+    {
+      "type": "US",
+      "name": "Eielson Air Force Base",
+      "country": "USA",
+      "lat": 64.663,
+      "lon": -147.1
+    },
+    {
+      "type": "US",
+      "name": "Joint Base Elmendorf-Richardson",
+      "country": "USA",
+      "lat": 61.254,
+      "lon": -149.8
+    },
+    {
+      "type": "US",
+      "name": "Kadena Air Base",
+      "country": "Japan",
+      "lat": 26.351,
+      "lon": 127.769
+    },
+    {
+      "type": "US",
+      "name": "Kunsan Air Base",
+      "country": "South Korea",
+      "lat": 35.895,
+      "lon": 126.618
+    },
+    {
+      "type": "US",
+      "name": "Misawa Air Base",
+      "country": "Japan",
+      "lat": 40.703,
+      "lon": 141.368
+    },
+    {
+      "type": "US",
+      "name": "Osan Air Base",
+      "country": "South Korea",
+      "lat": 37.089,
+      "lon": 127.029
+    },
+    {
+      "type": "US",
+      "name": "Joint Base Pearl Harbor-Hickam",
+      "country": "USA",
+      "lat": 21.317,
+      "lon": -157.924
+    },
+    {
+      "type": "US",
+      "name": "Vance Air Force Base",
+      "country": "USA",
+      "lat": 36.339,
+      "lon": -97.778
+    },
+    {
+      "type": "US",
+      "name": "Jackson Air National Guard Base",
+      "country": "USA",
+      "lat": 32.31111,
+      "lon": -90.07583
+    },
+    {
+      "type": "US",
+      "name": "Jacksonville Air National Guard Base",
+      "country": "USA",
+      "lat": 30.49417,
+      "lon": -81.68778
+    },
+    {
+      "type": "US",
+      "name": "Jefferson Barracks Air National Guard Station",
+      "country": "USA",
+      "lat": 38.503972,
+      "lon": -90.28025
+    },
+    {
+      "type": "US",
+      "name": "Joe Foss Field Air National Guard Station",
+      "country": "USA",
+      "lat": 43.58194,
+      "lon": -96.74194
+    },
+    {
+      "type": "US",
+      "name": "Johnstown Air National Guard Station",
+      "country": "USA",
+      "lat": 40.323194,
+      "lon": -78.837694
+    },
+    {
+      "type": "US",
+      "name": "Key Field Air National Guard Base",
+      "country": "USA",
+      "lat": 32.3325,
+      "lon": -88.75194
+    },
+    {
+      "type": "US",
+      "name": "Kingsley Field Air National Guard Base",
+      "country": "USA",
+      "lat": 42.15611,
+      "lon": -121.73306
+    },
+    {
+      "type": "US",
+      "name": "Lincoln Air National Guard Base",
+      "country": "USA",
+      "lat": 40.85111,
+      "lon": -96.75917
+    },
+    {
+      "type": "US",
+      "name": "Louisville Air National Guard Base",
+      "country": "USA",
+      "lat": 38.17806,
+      "lon": -85.72472
+    },
+    {
+      "type": "US",
+      "name": "Mansfield Lahm Air National Guard Base",
+      "country": "USA",
+      "lat": 40.81361,
+      "lon": -82.51667
+    },
+    {
+      "type": "US",
+      "name": "March Joint Air Reserve Base",
+      "country": "USA",
+      "lat": 33.88056,
+      "lon": -117.25944
+    },
+    {
+      "type": "US",
+      "name": "McEntire Joint National Guard Base",
+      "country": "USA",
+      "lat": 33.92083,
+      "lon": -80.80111
+    },
+    {
+      "type": "US",
+      "name": "McGhee Tyson Air National Guard Base",
+      "country": "USA",
+      "lat": 35.81083,
+      "lon": -83.99389
+    },
+    {
+      "type": "US",
+      "name": "McLaughlin Air National Guard Base",
+      "country": "USA",
+      "lat": 38.37306,
+      "lon": -81.59306
+    },
+    {
+      "type": "US",
+      "name": "Memphis Air National Guard Base",
+      "country": "USA",
+      "lat": 35.0425,
+      "lon": -89.97667
+    },
+    {
+      "type": "US",
+      "name": "Minneapolis-Saint Paul Joint Air Reserve Station",
+      "country": "USA",
+      "lat": 44.88167,
+      "lon": -93.23361
+    },
+    {
+      "type": "US",
+      "name": "Moffett Federal Airfield",
+      "country": "USA",
+      "lat": 37.415,
+      "lon": -122.04833
+    },
+    {
+      "type": "US",
+      "name": "Montgomery Air National Guard Base",
+      "country": "USA",
+      "lat": 32.30444,
+      "lon": -86.40028
+    },
+    {
+      "type": "US",
+      "name": "Morris Air National Guard Base",
+      "country": "USA",
+      "lat": 32.11528,
+      "lon": -110.93056
+    },
+    {
+      "type": "US",
+      "name": "New Castle Air National Guard Base",
+      "country": "USA",
+      "lat": 39.68528,
+      "lon": -75.59917
+    },
+    {
+      "type": "US",
+      "name": "New London Air National Guard Base",
+      "country": "USA",
+      "lat": 35.418583,
+      "lon": -80.14167
+    },
+    {
+      "type": "US",
+      "name": "Naval Air Station Joint Reserve Base New Orleans",
+      "country": "USA",
+      "lat": 29.82528,
+      "lon": -90.035
+    },
+    {
+      "type": "US",
+      "name": "Niagara Falls Air Reserve Station",
+      "country": "USA",
+      "lat": 43.11333,
+      "lon": -78.9475
+    },
+    {
+      "type": "US",
+      "name": "North Highlands Air National Guard Station",
+      "country": "USA",
+      "lat": 38.64,
+      "lon": -121.4025
+    },
+    {
+      "type": "US",
+      "name": "North Smithfield Air National Guard Station",
+      "country": "USA",
+      "lat": 41.97028,
+      "lon": -71.575667
+    },
+    {
+      "type": "US",
+      "name": "Otis Air National Guard Base",
+      "country": "USA",
+      "lat": 41.65861,
+      "lon": -70.52139
+    },
+    {
+      "type": "US",
+      "name": "Pease Air National Guard Base",
+      "country": "USA",
+      "lat": 43.07806,
+      "lon": -70.82333
+    },
+    {
+      "type": "US",
+      "name": "Peoria Air National Guard Base",
+      "country": "USA",
+      "lat": 40.66056,
+      "lon": -89.69556
+    },
+    {
+      "type": "US",
+      "name": "Peterson Space Force Base",
+      "country": "USA",
+      "lat": 38.82361,
+      "lon": -104.695
+    },
+    {
+      "type": "US",
+      "name": "Pittsburgh International Airport Air Reserve Station",
+      "country": "USA",
+      "lat": 40.4945806,
+      "lon": -80.215475
+    },
+    {
+      "type": "US",
+      "name": "Portland Air National Guard Base",
+      "country": "USA",
+      "lat": 45.58222,
+      "lon": -122.58972
+    },
+    {
+      "type": "US",
+      "name": "Quonset Point Air National Guard Station",
+      "country": "USA",
+      "lat": 41.59722,
+      "lon": -71.41222
+    },
+    {
+      "type": "US",
+      "name": "Reno Air National Guard Base",
+      "country": "USA",
+      "lat": 39.49917,
+      "lon": -119.76806
+    },
+    {
+      "type": "US",
+      "name": "Rickenbacker Air National Guard Base",
+      "country": "USA",
+      "lat": 39.81361,
+      "lon": -82.94667
+    },
+    {
+      "type": "US",
+      "name": "Roland R. Wright Air National Guard Base",
+      "country": "USA",
+      "lat": 40.78833,
+      "lon": -111.97778
+    },
+    {
+      "type": "US",
+      "name": "Rosecrans Air National Guard Base",
+      "country": "USA",
+      "lat": 39.77194,
+      "lon": -94.9097056
+    },
+    {
+      "type": "US",
+      "name": "Savannah Air National Guard Base",
+      "country": "USA",
+      "lat": 32.1275,
+      "lon": -81.20194
+    },
+    {
+      "type": "US",
+      "name": "Schriever Space Force Base",
+      "country": "USA",
+      "lat": 38.80333,
+      "lon": -104.52556
+    },
+    {
+      "type": "US",
+      "name": "Selfridge Air National Guard Base",
+      "country": "USA",
+      "lat": 42.60833,
+      "lon": -82.83556
+    },
+    {
+      "type": "US",
+      "name": "Sepulveda Air National Guard Station",
+      "country": "USA",
+      "lat": 34.185944,
+      "lon": -118.48
+    },
+    {
+      "type": "US",
+      "name": "Shepherd Field Air National Guard Base",
+      "country": "USA",
+      "lat": 39.40194,
+      "lon": -77.98444
+    },
+    {
+      "type": "US",
+      "name": "Sioux City Air National Guard Base",
+      "country": "USA",
+      "lat": 42.39833,
+      "lon": -96.37194
+    },
+    {
+      "type": "US",
+      "name": "South Portland Air National Guard Station",
+      "country": "USA",
+      "lat": 43.633583,
+      "lon": -70.316306
+    },
+    {
+      "type": "US",
+      "name": "Springfield Air National Guard Base",
+      "country": "USA",
+      "lat": 39.84028,
+      "lon": -83.84028
+    },
+    {
+      "type": "US",
+      "name": "Stewart Air National Guard Base",
+      "country": "USA",
+      "lat": 41.50417,
+      "lon": -74.10472
+    },
+    {
+      "type": "US",
+      "name": "Stratton Air National Guard Base",
+      "country": "USA",
+      "lat": 42.8525,
+      "lon": -73.9225
+    },
+    {
+      "type": "US",
+      "name": "Sumpter Smith Air National Guard Base",
+      "country": "USA",
+      "lat": 33.56389,
+      "lon": -86.75222
+    },
+    {
+      "type": "US",
+      "name": "Toledo Air National Guard Base",
+      "country": "USA",
+      "lat": 41.586806,
+      "lon": -83.807833
+    },
+    {
+      "type": "US",
+      "name": "Truax Field Air National Guard Base",
+      "country": "USA",
+      "lat": 43.13972,
+      "lon": -89.3375
+    },
+    {
+      "type": "US",
+      "name": "Tulsa Air National Guard Base",
+      "country": "USA",
+      "lat": 36.19833,
+      "lon": -95.88806
+    },
+    {
+      "type": "US",
+      "name": "Volk Field Air National Guard Base",
+      "country": "USA",
+      "lat": 43.93639,
+      "lon": -90.25972
+    },
+    {
+      "type": "US",
+      "name": "Volunteer Air National Guard Station",
+      "country": "USA",
+      "lat": 35.0735861,
+      "lon": -85.1635
+    },
+    {
+      "type": "US",
+      "name": "Warfield Air National Guard Base",
+      "country": "USA",
+      "lat": 39.3256611,
+      "lon": -76.4137639
+    },
+    {
+      "type": "US",
+      "name": "Westover Air Reserve Base",
+      "country": "USA",
+      "lat": 42.19389,
+      "lon": -72.53472
+    },
+    {
+      "type": "US",
+      "name": "Will Rogers Air National Guard Base",
+      "country": "USA",
+      "lat": 35.39306,
+      "lon": -97.60083
+    },
+    {
+      "type": "US",
+      "name": "Wyoming Air National Guard Base",
+      "country": "USA",
+      "lat": 41.16139,
+      "lon": -104.81944
+    },
+    {
+      "type": "NATO",
+      "name": "Geilenkirchen NATO Air Base",
+      "country": "Germany",
+      "lat": 50.9708,
+      "lon": 6.0424
+    },
+    {
+      "type": "NATO",
+      "name": "Ramstein Air Base",
+      "country": "Germany",
+      "lat": 49.4369,
+      "lon": 7.6003
+    },
+    {
+      "type": "NATO",
+      "name": "Spangdahlem Air Base",
+      "country": "Germany",
+      "lat": 49.975,
+      "lon": 6.6925
+    },
+    {
+      "type": "NATO",
+      "name": "Aviano Air Base",
+      "country": "Italy",
+      "lat": 46.0317,
+      "lon": 12.5967
+    },
+    {
+      "type": "NATO",
+      "name": "Incirlik Air Base",
+      "country": "Turkey",
+      "lat": 37.0019,
+      "lon": 35.4258
+    },
+    {
+      "type": "NATO",
+      "name": "RAF Lakenheath",
+      "country": "United Kingdom",
+      "lat": 52.4094,
+      "lon": 0.5611
+    },
+    {
+      "type": "NATO",
+      "name": "RAF Mildenhall",
+      "country": "United Kingdom",
+      "lat": 52.3619,
+      "lon": 0.4864
+    },
+    {
+      "type": "NATO",
+      "name": "Moron Air Base",
+      "country": "Spain",
+      "lat": 37.1749,
+      "lon": -5.6159
+    },
+    {
+      "type": "NATO",
+      "name": "Lajes Field",
+      "country": "Portugal",
+      "lat": 38.7617,
+      "lon": -27.0908
+    },
+    {
+      "type": "NATO",
+      "name": "Keflavik Naval Air Station",
+      "country": "Iceland",
+      "lat": 63.985,
+      "lon": -22.6056
+    },
+    {
+      "type": "NATO",
+      "name": "Pituffik Space Base",
+      "country": "Greenland",
+      "lat": 76.5312,
+      "lon": -68.7032
+    },
+    {
+      "type": "NATO",
+      "name": "Evenes Air Station",
+      "country": "Norway",
+      "lat": 68.4917,
+      "lon": 16.6781
+    },
+    {
+      "type": "NATO",
+      "name": "Rovaniemi Air Base",
+      "country": "Finland",
+      "lat": 66.5648,
+      "lon": 25.8304
+    },
+    {
+      "type": "NATO",
+      "name": "Luleå-Kallax Air Base",
+      "country": "Sweden",
+      "lat": 65.5438,
+      "lon": 22.1219
+    },
+    {
+      "type": "NATO",
+      "name": "Combined Air Operations Centre Uedem",
+      "country": "Germany",
+      "lat": 51.2894,
+      "lon": 6.1483
+    },
+    {
+      "type": "NATO",
+      "name": "Combined Air Operations Centre Torrejón",
+      "country": "Spain",
+      "lat": 40.4967,
+      "lon": -3.4458
+    },
+    {
+      "type": "NATO",
+      "name": "Combined Air Operations Centre Bodø",
+      "country": "Norway",
+      "lat": 67.2692,
+      "lon": 14.3653
+    }
+  ]
+}

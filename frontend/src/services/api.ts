@@ -2,9 +2,15 @@ import type {
   AlertEvaluationResponse,
   AlertHistoryResponse,
   FeatureVector,
+  GdeltDetailResponse,
+  GdeltSignalRefreshResponse,
   MarketOpportunitiesResponse,
+  OpenSkyAnomaliesResponse,
+  OpenSkySignalRefreshResponse,
+  PizzaIndexSnapshotResponse,
   RiskScoreResponse,
   SignalSnapshot,
+  SignalSourceRefreshResponse,
 } from '../types/api';
 
 const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
@@ -42,6 +48,41 @@ export function getLatestSignals(): Promise<SignalSnapshot> {
 
 export function refreshSignals(): Promise<SignalSnapshot> {
   return request<SignalSnapshot>('/api/v1/signals/refresh', { method: 'POST' });
+}
+
+export function refreshSignalSource(sourceName: string): Promise<SignalSourceRefreshResponse> {
+  return request<SignalSourceRefreshResponse>('/api/v1/signals/refresh-source', {
+    method: 'POST',
+    body: JSON.stringify({ source_name: sourceName }),
+  });
+}
+
+export function getLatestPizzaIndex(): Promise<PizzaIndexSnapshotResponse> {
+  return request<PizzaIndexSnapshotResponse>('/api/v1/pizza-index/latest');
+}
+
+export function refreshPizzaIndex(): Promise<PizzaIndexSnapshotResponse> {
+  return request<PizzaIndexSnapshotResponse>('/api/v1/pizza-index/refresh', { method: 'POST' });
+}
+
+export function getOpenSkyAnomalies(): Promise<OpenSkyAnomaliesResponse> {
+  return request<OpenSkyAnomaliesResponse>('/api/v1/signals/sources/opensky-network/anomalies');
+}
+
+export function refreshOpenSkySignal(): Promise<OpenSkySignalRefreshResponse> {
+  return request<OpenSkySignalRefreshResponse>('/api/v1/signals/sources/opensky-network/refresh-signal', {
+    method: 'POST',
+  });
+}
+
+export function getGdeltDetail(): Promise<GdeltDetailResponse> {
+  return request<GdeltDetailResponse>('/api/v1/signals/sources/gdelt/detail');
+}
+
+export function refreshGdeltSignal(): Promise<GdeltSignalRefreshResponse> {
+  return request<GdeltSignalRefreshResponse>('/api/v1/signals/sources/gdelt/refresh-signal', {
+    method: 'POST',
+  });
 }
 
 export function scoreRisk(features: FeatureVector): Promise<RiskScoreResponse> {

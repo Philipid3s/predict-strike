@@ -1,10 +1,15 @@
 from src.models.schemas import (
     AlertEvaluationResponse,
     AlertHistoryResponse,
+    GdeltDetailResponse,
+    GdeltSignalRefreshResponse,
     MarketOpportunitiesResponse,
+    OpenSkyAnomaliesResponse,
+    OpenSkySignalRefreshResponse,
     PizzaIndexSnapshotResponse,
     PizzaIndexTargetActivity,
     PizzaIndexTargetsResponse,
+    SignalSourceRefreshResponse,
 )
 from src.services.alert_pipeline import (
     evaluate_alerts as run_alert_evaluation,
@@ -19,7 +24,12 @@ from src.services.pizza_index_pipeline import (
 )
 from src.services.signal_pipeline import (
     get_or_create_latest_snapshot,
+    get_latest_gdelt_detail as load_latest_gdelt_detail,
     refresh_latest_snapshot,
+    refresh_gdelt_signal as load_refreshed_gdelt_signal,
+    refresh_opensky_signal as load_refreshed_opensky_signal,
+    refresh_signal_source as load_refreshed_signal_source,
+    get_latest_opensky_anomalies as load_latest_opensky_anomalies,
 )
 
 
@@ -29,6 +39,26 @@ def get_latest_signals():
 
 def refresh_latest_signals():
     return refresh_latest_snapshot()
+
+
+def refresh_signal_source(source_name: str) -> SignalSourceRefreshResponse:
+    return load_refreshed_signal_source(source_name)
+
+
+def get_latest_opensky_anomalies() -> OpenSkyAnomaliesResponse:
+    return load_latest_opensky_anomalies()
+
+
+def refresh_opensky_signal() -> OpenSkySignalRefreshResponse:
+    return load_refreshed_opensky_signal()
+
+
+def get_latest_gdelt_detail() -> GdeltDetailResponse:
+    return load_latest_gdelt_detail()
+
+
+def refresh_gdelt_signal() -> GdeltSignalRefreshResponse:
+    return load_refreshed_gdelt_signal()
 
 
 def get_market_opportunities() -> MarketOpportunitiesResponse:

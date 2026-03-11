@@ -103,6 +103,13 @@ defines two allowed execution modes:
      subagents or a delegation tool like `spawn_agent`, the orchestrator should
      delegate specialist work through that capability using the task packet
      format defined in `docs/agents/orchestrator.md`.
+   - Native delegation transport types such as `worker`, `default`, or host
+     runtime subagent classes are implementation details only. They do not
+     replace repository roles such as `frontend-agent`, `backend-agent`,
+     `docs-agent`, `platform-agent`, or `qa-agent`.
+   - Exactly one session participant may act as `Role: orchestrator`. Delegated
+     agents must always adopt a specialist role and must never identify
+     themselves as `Role: orchestrator`.
 
 2. **Strict single-session fallback mode**
    - Used when the host runtime does not expose native sub-agent delegation
@@ -122,6 +129,23 @@ defines two allowed execution modes:
 - If a delegation tool is visible but fails because delegation is unsupported in
   the current session, immediately fall back to strict single-session mode and
   continue the task without blocking.
+
+### Mandatory rules in native delegation mode
+
+- Exactly one active orchestrator may exist for the session.
+- The main session is the only place allowed to use `Role: orchestrator`.
+- Each delegated task must name the repository specialist explicitly via
+  `assigned_to`.
+- Each delegated task must include an `active_role` field that matches the
+  assigned repository specialist.
+- The delegated task message itself must not begin with
+  `Role: orchestrator`, even if the parent orchestrator authored the handoff.
+- Delegated agents must begin their own task output with
+  `Role: <assigned specialist>`.
+- Delegated agents must not present themselves as generic coordinators,
+  orchestrators, or unlabeled workers in user-visible summaries.
+- File ownership is determined by repository role, not by runtime transport
+  type.
 
 ### Mandatory rules in fallback mode
 
@@ -160,6 +184,10 @@ Example labels:
 - `Role: orchestrator`
 - `Role: backend-agent`
 - `Role: docs-agent`
+
+For native delegation, the runtime may still use generic transport names such
+as `worker` or `default`, but those are not valid substitutes for repository
+role labels in task packets, summaries, reports, or handoffs.
 
 **Session continuity:** At the end of a long session or before starting a new one,
 the orchestrator writes a session handoff file to `docs/sessions/` using the template
@@ -212,6 +240,8 @@ At minimum, review and update:
 - Before modifying a file, read it first to understand context.
 - Keep solutions minimal and avoid over-engineering.
 - When adding architecture decisions, create a new ADR in `docs/adr/`.
+- The orchestrator decides when an ADR is required; `docs-agent` authors the
+  ADR file unless the user explicitly requests a different mode of working.
 - Respect file ownership defined in `docs/agents/ownership.yml`.
 - If the runtime lacks native sub-agent support, enforce the strict fallback
   rules above rather than collapsing specialist work into `Role: orchestrator`.

@@ -17,6 +17,11 @@ cross-area conflicts. The orchestrator does **not** make domain changes directly
 - When available, delegate each specialist task by passing the handoff packet
   below to the runtime's native delegation mechanism, such as Claude Code
   subagents or `spawn_agent`.
+- Runtime agent classes such as `worker`, `default`, or similar host-provided
+  labels are transport details only. They do not replace repository roles.
+- The orchestrator must delegate to explicit repository specialists such as
+  `frontend-agent`, `backend-agent`, `docs-agent`, `platform-agent`, or
+  `qa-agent`, and must encode that role in the task packet.
 - If the environment also exposes discovery or collection tools such as
   `list_agents` or `collect_agent_result`, use them to validate the target
   specialist and gather the result.
@@ -52,7 +57,8 @@ cross-cutting files (e.g., root `AGENTS.md`, this `docs/agents/` directory,
 
 - Delegated task packets (one per specialist agent) - see handoff format below
 - Integration report after all specialists complete
-- Updated `docs/adr/` entry if a significant decision was made
+- ADR request and decision summary for `docs-agent` if a significant decision
+  was made
 - Session handoff file in `docs/sessions/` at end of session or when context is long
 
 ## Delegation Procedure
@@ -60,9 +66,15 @@ cross-cutting files (e.g., root `AGENTS.md`, this `docs/agents/` directory,
 1. Detect whether native delegation tools are callable in the current runtime.
 2. If a native delegation capability is available, stay in `Role: orchestrator`
    while issuing specialist task packets through that capability.
-3. Wait for and collect specialist outputs through the runtime's result
+3. Ensure every delegated task names one repository specialist and includes an
+   `active_role` that matches that specialist.
+4. Ensure the delegated task message itself does not begin with
+   `Role: orchestrator`, even if the parent orchestrator authored the handoff.
+5. Ensure delegated outputs present themselves as the assigned specialist role,
+   never as `Role: orchestrator`.
+6. Wait for and collect specialist outputs through the runtime's result
    collection primitive.
-4. If native delegation tools are not available, or if a delegation attempt
+7. If native delegation tools are not available, or if a delegation attempt
    fails because the runtime does not actually allow sub-agents, switch to the
    matching specialist role and follow strict single-session fallback rules.
 
@@ -74,6 +86,11 @@ cross-cutting files (e.g., root `AGENTS.md`, this `docs/agents/` directory,
   agent explicitly
 - Durable outputs written by the orchestrator must include a `Prepared By`
   field or equivalent label
+- Only the main session may use `Role: orchestrator`
+- Delegated agents must use only the assigned specialist role label
+- Delegated agents must not identify themselves as orchestrator, coordinator,
+  or generic worker in user-visible output
+- Delegated task messages must not begin with `Role: orchestrator`
 
 ## Task Handoff Format
 
@@ -83,6 +100,7 @@ Each delegated task must include:
 task:
   objective: '<clear, scoped description>'
   assigned_to: '<agent-name>'
+  active_role: '<same as assigned_to>'
   files_allowed:
     - '<path pattern>'
   context: '<relevant background or constraints>'
@@ -113,6 +131,10 @@ When a session is ending or context is getting long, write a handoff file:
 - Direct domain changes to `frontend/**`, `backend/**`
 - Bypassing specialist ownership to resolve conflicts faster
 - Delegating without explicit acceptance criteria
+- Delegating through a runtime transport label without naming the repository
+  specialist role explicitly
+- Beginning a delegated task message with `Role: orchestrator`
+- Allowing delegated output to present as `Role: orchestrator`
 - Starting a new session on in-progress work without writing a handoff first
 - Remaining in `Role: orchestrator` while editing specialist-owned files in
   fallback mode

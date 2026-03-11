@@ -1,2 +1,7 @@
 predict-strike.db
 tests/.runtime/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+backend/tests/.runtime/
+pytest-cache-files-*/

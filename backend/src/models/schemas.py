@@ -13,6 +13,8 @@ AlertStatus = Literal["open", "dismissed", "resolved"]
 PizzaIndexDataQuality = Literal["full", "partial", "unavailable"]
 PizzaIndexProvider = Literal["pizzint", "serpapi", "stub"]
 PizzaIndexProviderMode = Literal["primary", "fallback", "stub"]
+OpenSkyAssessmentStatus = Literal["ready", "disabled", "error"]
+GdeltAssessmentStatus = Literal["ready", "disabled", "error"]
 
 
 class FeatureSet(BaseModel):
@@ -69,6 +71,113 @@ class LatestSignalsResponse(BaseModel):
     region_focus: str
     features: FeatureSet
     sources: list[SignalSource]
+
+
+class SignalSourceRefreshRequest(BaseModel):
+    source_name: str
+
+
+class SignalSourceRefreshResponse(BaseModel):
+    source: SignalSource
+    snapshot: LatestSignalsResponse
+
+
+class OpenSkySignalRefreshResponse(BaseModel):
+    source: SignalSource
+    snapshot: LatestSignalsResponse
+    assessment: "OpenSkyStrikeAssessment"
+
+
+class GdeltSignalAssessment(BaseModel):
+    status: GdeltAssessmentStatus
+    prompt_version: str
+    probability_percent: int | None = Field(default=None, ge=0, le=100)
+    target_region: str | None = None
+    target_country: str | None = None
+    summary: str
+    assessed_article_count: int = Field(..., ge=0)
+    freshness_score: float = Field(..., ge=0.0, le=1.0)
+
+
+class GdeltSignalRefreshResponse(BaseModel):
+    source: SignalSource
+    snapshot: LatestSignalsResponse
+    assessment: GdeltSignalAssessment
+
+
+class OpenSkyAnomaly(BaseModel):
+    icao24: str
+    callsign: str | None = None
+    origin_country: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    baro_altitude: float | None = None
+    velocity: float | None = None
+    geo_altitude: float | None = None
+    reasons: list[str]
+
+
+class OpenSkyStrikeAssessment(BaseModel):
+    status: OpenSkyAssessmentStatus
+    prompt_version: str
+    probability_percent: int | None = Field(default=None, ge=0, le=100)
+    countries: list[str]
+    explanation: str | None = None
+
+
+class OpenSkyAnomaliesResponse(BaseModel):
+    generated_at: datetime
+    status: SourceStatus
+    flight_anomaly: float = Field(..., ge=0.0, le=1.0)
+    anomalies: list[OpenSkyAnomaly]
+    assessment: OpenSkyStrikeAssessment
+
+
+class GdeltCountBreakdown(BaseModel):
+    label: str
+    count: int = Field(..., ge=0)
+
+
+class GdeltHeadline(BaseModel):
+    article_id: str
+    title: str
+    source: str | None = None
+    source_label: str
+    published_at: str | None = None
+    url: str | None = None
+    is_alert: bool
+    is_us_nato_actor: bool
+    is_action_indicative: bool
+    freshness_score: float = Field(..., ge=0.0, le=1.0)
+    themes: list[str]
+    regions: list[str]
+
+
+class GdeltProvenance(BaseModel):
+    source_url_configured: bool
+    keyword_watchlist: list[str]
+    theme_derivation: str
+    region_derivation: str
+    comparison_basis: str
+    collector_fallback_reason: str | None = None
+
+
+class GdeltDetailResponse(BaseModel):
+    generated_at: datetime
+    status: SourceStatus
+    news_volume: float = Field(..., ge=0.0, le=1.0)
+    article_count: int = Field(..., ge=0)
+    alert_article_count: int = Field(..., ge=0)
+    signal_article_count: int = Field(..., ge=0)
+    freshness_score: float = Field(..., ge=0.0, le=1.0)
+    alert_share: float = Field(..., ge=0.0, le=1.0)
+    volume_delta: float | None = None
+    top_regions: list[GdeltCountBreakdown]
+    top_themes: list[GdeltCountBreakdown]
+    top_sources: list[GdeltCountBreakdown]
+    headlines: list[GdeltHeadline]
+    assessment: GdeltSignalAssessment
+    provenance: GdeltProvenance
 
 
 class MarketOpportunity(BaseModel):

@@ -172,6 +172,28 @@ class SignalStore:
             ],
         )
 
+    def get_latest_source_observation(self, source_name: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT collected_at, status, payload_json
+                FROM source_observations
+                WHERE source_name = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (source_name,),
+            ).fetchone()
+
+        if row is None:
+            return None
+
+        return {
+            "collected_at": row["collected_at"],
+            "status": row["status"],
+            "payload": json.loads(row["payload_json"]),
+        }
+
     @staticmethod
     def _coerce_source_payload(source: dict) -> dict:
         payload = dict(source)

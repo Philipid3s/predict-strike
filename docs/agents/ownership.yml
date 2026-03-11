@@ -4,13 +4,14 @@
 
 orchestrator:
   paths:
-    - '**' # Full access — conflict resolution and cross-cutting files only
+    - '**' # Full access, conflict resolution and cross-cutting files only
   primary_write_paths:
     - 'AGENTS.md'
     - 'docs/agents/**'
     - 'docs/sessions/**' # Session handoff files
-    - 'docs/adr/**' # When no specialist is assigned the decision
-  note: Must not make domain changes directly. Delegates to specialists.
+  note: Must not make domain changes directly. Delegates to specialists and
+    resolves conflicts. ADR direction is orchestrator-owned; ADR authoring is
+    docs-agent-owned.
 
 frontend-agent:
   paths:
@@ -27,9 +28,14 @@ docs-agent:
     - 'docs/sessions/**' # Owned by orchestrator
     - 'docs/agents/**' # Owned by orchestrator
     - 'docs/reports/**' # Owned by qa-agent
+  note: Owns docs authoring including ADR files in `docs/adr/**`. The
+    orchestrator decides when an ADR is required or approved.
 
 qa-agent:
   read_paths:
+    - 'AGENTS.md'
+    - 'docs/agents/**'
+    - 'docs/sessions/**'
     - 'docs/specs/**'
     - 'docs/api/openapi.yml'
     - 'docs/adr/**'
@@ -38,7 +44,8 @@ qa-agent:
   write_paths:
     - 'docs/reports/**' # Compliance reports
     - 'tests/acceptance/**' # Spec-driven acceptance tests
-  note: Read-only on implementation and spec files. Writes acceptance tests and compliance reports.
+  note: Read-only on implementation and spec files. Writes acceptance tests and
+    compliance reports.
 
 platform-agent:
   paths:

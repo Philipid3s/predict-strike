@@ -66,8 +66,9 @@ class OperatorDashboardUiAcceptanceTests(unittest.TestCase):
             "created 1 new alert",
             "No alerts recorded yet",
             "Data mode: Live",
+            "mode: 'fallback'",
             "Static Baseline",
-            "Source Fallback",
+            "Data mode: Static Baseline",
         ]
 
         for marker in expected_markers:

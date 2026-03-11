@@ -116,7 +116,7 @@ Signals:
 
 Sources:
 
-- GDELT
+- GDELT DOC 2.0
 - Google News scraping
 
 Signals:
@@ -284,7 +284,7 @@ Possible implementation:
 | NOTAM feeds | Airspace restrictions | scrape/API |
 | Sentinel Hub | Satellite imagery | API |
 | NASA Worldview | Satellite monitoring | API |
-| GDELT | Global news monitoring | API |
+| GDELT DOC 2.0 | Global news monitoring | API |
 | Telegram / Twitter | OSINT social signals | scraping |
 | Polymarket | Prediction market data | API |
 

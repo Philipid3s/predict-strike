@@ -1,7 +1,23 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 
-from src.models.schemas import LatestSignalsResponse
-from src.services.seed_data import get_latest_signals, refresh_latest_signals
+from src.models.schemas import (
+    GdeltDetailResponse,
+    GdeltSignalRefreshResponse,
+    LatestSignalsResponse,
+    OpenSkyAnomaliesResponse,
+    OpenSkySignalRefreshResponse,
+    SignalSourceRefreshRequest,
+    SignalSourceRefreshResponse,
+)
+from src.services.seed_data import (
+    get_latest_signals,
+    get_latest_gdelt_detail,
+    get_latest_opensky_anomalies,
+    refresh_gdelt_signal,
+    refresh_opensky_signal,
+    refresh_latest_signals,
+    refresh_signal_source,
+)
 
 router = APIRouter(prefix="/signals", tags=["signals"])
 
@@ -14,3 +30,42 @@ def get_latest_signal_snapshot() -> LatestSignalsResponse:
 @router.post("/refresh", response_model=LatestSignalsResponse)
 def refresh_signal_snapshot() -> LatestSignalsResponse:
     return refresh_latest_signals()
+
+
+@router.post("/refresh-source", response_model=SignalSourceRefreshResponse)
+def refresh_individual_signal_source(
+    request: SignalSourceRefreshRequest,
+) -> SignalSourceRefreshResponse:
+    try:
+        return refresh_signal_source(request.source_name)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.get("/sources/opensky-network/anomalies", response_model=OpenSkyAnomaliesResponse)
+def get_opensky_anomalies() -> OpenSkyAnomaliesResponse:
+    return get_latest_opensky_anomalies()
+
+
+@router.post(
+    "/sources/opensky-network/refresh-signal",
+    response_model=OpenSkySignalRefreshResponse,
+)
+def refresh_opensky_signal_feature() -> OpenSkySignalRefreshResponse:
+    return refresh_opensky_signal()
+
+
+@router.get("/sources/gdelt/detail", response_model=GdeltDetailResponse)
+def get_gdelt_detail() -> GdeltDetailResponse:
+    return get_latest_gdelt_detail()
+
+
+@router.post(
+    "/sources/gdelt/refresh-signal",
+    response_model=GdeltSignalRefreshResponse,
+)
+def refresh_gdelt_signal_feature() -> GdeltSignalRefreshResponse:
+    return refresh_gdelt_signal()

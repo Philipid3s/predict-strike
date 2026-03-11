@@ -67,7 +67,7 @@ paths:
                 default:
                   value:
                     generated_at: "2026-03-07T09:00:00Z"
-                    region_focus: global
+                    region_focus: 42-48N / 30-36E sector
                     features:
                       flight_anomaly: 0.68
                       notam_spike: 0.34
@@ -117,7 +117,7 @@ paths:
                 default:
                   value:
                     generated_at: "2026-03-07T09:05:00Z"
-                    region_focus: global
+                    region_focus: 30-36N / 30-36E sector
                     features:
                       flight_anomaly: 0.72
                       notam_spike: 0.34
@@ -150,6 +150,344 @@ paths:
                         status: planned
                         mode: static_baseline
                         last_checked_at: null
+
+  /api/v1/signals/refresh-source:
+    post:
+      tags: [signals]
+      summary: Refresh a single collector-backed signal source
+      description: |
+        Forces a fresh collection pass for one source entry in the latest
+        signal snapshot. Only collector-backed sources currently support this
+        endpoint. Static baseline entries return a validation error.
+      operationId: refreshSignalSource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignalSourceRefreshRequest"
+            examples:
+              default:
+                value:
+                  source_name: OpenSky Network
+      responses:
+        "200":
+          description: Signal source refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignalSourceRefreshResponse"
+              examples:
+                default:
+                  value:
+                    source:
+                      name: OpenSky Network
+                      status: active
+                      mode: live
+                      last_checked_at: "2026-03-07T09:06:00Z"
+                    snapshot:
+                      generated_at: "2026-03-07T09:06:00Z"
+                      region_focus: 24-30N / 48-54E sector
+                      features:
+                        flight_anomaly: 0.74
+                        notam_spike: 0.34
+                        satellite_buildup: 0.21
+                        news_volume: 0.57
+                        osint_activity: 0.46
+                        pizza_index: 0.12
+                      sources:
+                        - name: OpenSky Network
+                          status: active
+                          mode: live
+                          last_checked_at: "2026-03-07T09:06:00Z"
+                        - name: NOTAM Feed
+                          status: degraded
+                          mode: fallback
+                          last_checked_at: "2026-03-07T09:05:00Z"
+                        - name: GDELT
+                          status: degraded
+                          mode: fallback
+                          last_checked_at: "2026-03-07T09:05:00Z"
+                        - name: Satellite Monitoring
+                          status: planned
+                          mode: static_baseline
+                          last_checked_at: null
+                        - name: Social OSINT
+                          status: planned
+                          mode: static_baseline
+                          last_checked_at: null
+                        - name: Pizza Index Activity
+                          status: planned
+                          mode: static_baseline
+                          last_checked_at: null
+        "400":
+          description: Source does not support individual refresh
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                required: [detail]
+                properties:
+                  detail:
+                    type: string
+              examples:
+                default:
+                  value:
+                    detail: "Signal source does not support individual refresh: Pizza Index Activity"
+
+  /api/v1/signals/sources/opensky-network/anomalies:
+    get:
+      tags: [signals]
+      summary: Get the latest suspicious OpenSky flights
+      description: |
+        Returns the latest OpenSky-derived suspicious flight list used to
+        explain the current flight anomaly score on the source detail page,
+        along with the latest AI-generated strike assessment derived from the
+        same snapshot.
+        Entries are flagged when they match military-like callsign patterns,
+        tanker or transport-like callsign families, concentration in the
+        dominant suspicious flight sector for the current snapshot,
+        low-altitude departures near known military airfields, or repeated
+        military-like callsign clusters in the same snapshot.
+      operationId: getOpenSkyAnomalies
+      responses:
+        "200":
+          description: OpenSky anomaly list returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenSkyAnomaliesResponse"
+              examples:
+                default:
+                  value:
+                    generated_at: "2026-03-07T09:04:00Z"
+                    status: active
+                    flight_anomaly: 0.68
+                    assessment:
+                      status: ready
+                      prompt_version: opensky-strike-v2
+                      probability_percent: 64
+                      countries:
+                        - Ukraine
+                        - Russia
+                      explanation: Elevated military-adjacent airlift and tanker activity is concentrated in the current hotspot sector.
+                    anomalies:
+                      - icao24: abc123
+                        callsign: RCH123
+                        origin_country: United States
+                        latitude: 44.12
+                        longitude: 32.85
+                        baro_altitude: 9750
+                        velocity: 215
+                        geo_altitude: 10100
+                        reasons:
+                          - military_like_callsign
+                          - tanker_transport_pattern
+                          - suspicious_region_concentration:42-48N / 30-36E sector
+                          - military_callsign_cluster
+
+  /api/v1/signals/sources/opensky-network/refresh-signal:
+    post:
+      tags: [signals]
+      summary: Refresh the OpenSky signal assessment and snapshot
+      description: |
+        Re-runs the OpenSky anomaly assessment workflow using the current
+        anomaly list, calls the AI strike assessment service, and persists the
+        updated snapshot feature value and inferred hotspot region derived from
+        the returned assessment.
+      operationId: refreshOpenSkySignal
+      responses:
+        "200":
+          description: OpenSky signal assessment refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenSkySignalRefreshResponse"
+              examples:
+                default:
+                  value:
+                    source:
+                      name: OpenSky Network
+                      status: active
+                      mode: live
+                      last_checked_at: "2026-03-07T09:06:00Z"
+                    snapshot:
+                      generated_at: "2026-03-07T09:06:00Z"
+                      region_focus: Ukraine / Western Russia hotspot
+                      features:
+                        flight_anomaly: 0.64
+                        notam_spike: 0.34
+                        satellite_buildup: 0.21
+                        news_volume: 0.57
+                        osint_activity: 0.46
+                        pizza_index: 0.12
+                      sources:
+                        - name: OpenSky Network
+                          status: active
+                          mode: live
+                          last_checked_at: "2026-03-07T09:06:00Z"
+                        - name: NOTAM Feed
+                          status: degraded
+                          mode: fallback
+                          last_checked_at: "2026-03-07T09:05:00Z"
+                        - name: GDELT
+                          status: degraded
+                          mode: fallback
+                          last_checked_at: "2026-03-07T09:05:00Z"
+                    assessment:
+                      status: ready
+                      prompt_version: opensky-strike-v2
+                      probability_percent: 64
+                      countries:
+                        - Ukraine
+                        - Russia
+                      explanation: Elevated military-adjacent airlift and tanker activity remains concentrated in the current hotspot sector.
+
+  /api/v1/signals/sources/gdelt/detail:
+    get:
+      tags: [signals]
+      summary: Get the latest analyst-facing GDELT detail breakdown
+      description: |
+        Returns the latest GDELT-derived article breakdown used to explain the
+        current `news_volume` feature on the dedicated source detail page.
+        The canonical upstream for this slice is GDELT DOC 2.0 article-list
+        output. The backend derives alert-share, signal-article counts,
+        freshness-weighted AI assessment context, ranked themes, ranked regions,
+        ranked source labels, and representative headlines from the latest
+        collected article set.
+      operationId: getGdeltDetail
+      responses:
+        "200":
+          description: GDELT detail returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GdeltDetailResponse"
+              examples:
+                default:
+                  value:
+                    generated_at: "2026-03-07T09:04:30Z"
+                    status: active
+                    news_volume: 0.84
+                    article_count: 18
+                    alert_article_count: 7
+                    signal_article_count: 8
+                    freshness_score: 0.91
+                    alert_share: 0.3889
+                    volume_delta: null
+                    top_regions:
+                      - label: Black Sea
+                        count: 6
+                      - label: Eastern Mediterranean
+                        count: 4
+                    top_themes:
+                      - label: Conflict & strikes
+                        count: 5
+                      - label: Mobilization & troop movement
+                        count: 4
+                    top_sources:
+                      - label: reuters.com
+                        count: 3
+                      - label: apnews.com
+                        count: 2
+                    headlines:
+                      - article_id: GDELT-1
+                        title: Regional air defense posture tightens after overnight incidents
+                        source: Reuters
+                        source_label: reuters.com
+                        published_at: "2026-03-07T08:45:00Z"
+                        url: "https://example.com/headline-1"
+                        is_alert: true
+                        is_us_nato_actor: true
+                        is_action_indicative: true
+                        freshness_score: 0.85
+                        themes:
+                          - Conflict & strikes
+                          - Airspace & aviation disruption
+                        regions:
+                          - Black Sea
+                    assessment:
+                      status: ready
+                      prompt_version: gdelt-strike-v1
+                      probability_percent: 84
+                      target_region: Eastern Mediterranean
+                      target_country: Syria
+                      summary: Recent US/NATO-linked strike coverage is clustering around Syria and nearby force-posture reporting.
+                      assessed_article_count: 8
+                      freshness_score: 0.91
+                    provenance:
+                      source_url_configured: true
+                      keyword_watchlist:
+                        - AIRSTRIKE
+                        - CONFLICT
+                        - MISSILE
+                        - MOBILIZATION
+                        - STRIKE
+                        - TROOPS
+                      theme_derivation: Keyword-derived from article title and body text.
+                      region_derivation: Keyword-derived from article title and body text.
+                      comparison_basis: Signal refresh uses freshness-weighted, US/NATO-specific article selection with AI assessment; prior-window comparison is still unavailable.
+                      collector_fallback_reason: null
+
+  /api/v1/signals/sources/gdelt/refresh-signal:
+    post:
+      tags: [signals]
+      summary: Refresh the GDELT signal assessment and snapshot
+      description: |
+        Re-runs the GDELT article collection workflow using the current article
+        set, applies freshness-aware US/NATO action-indicative filtering,
+        submits the representative article subset to the AI assessment service,
+        and persists the updated `news_volume` feature value plus any inferred
+        target region or country returned by the assessment.
+      operationId: refreshGdeltSignal
+      responses:
+        "200":
+          description: GDELT signal assessment refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GdeltSignalRefreshResponse"
+              examples:
+                default:
+                  value:
+                    source:
+                      name: GDELT
+                      status: active
+                      mode: live
+                      last_checked_at: "2026-03-07T09:08:00Z"
+                    snapshot:
+                      generated_at: "2026-03-07T09:08:00Z"
+                      region_focus: Syria
+                      features:
+                        flight_anomaly: 0.68
+                        notam_spike: 0.34
+                        satellite_buildup: 0.21
+                        news_volume: 0.84
+                        osint_activity: 0.46
+                        pizza_index: 0.12
+                      sources:
+                        - name: OpenSky Network
+                          status: active
+                          mode: live
+                          last_checked_at: "2026-03-07T08:55:00Z"
+                        - name: NOTAM Feed
+                          status: degraded
+                          mode: fallback
+                          last_checked_at: "2026-03-07T08:54:00Z"
+                        - name: GDELT
+                          status: active
+                          mode: live
+                          last_checked_at: "2026-03-07T09:08:00Z"
+                    assessment:
+                      status: ready
+                      prompt_version: gdelt-strike-v1
+                      probability_percent: 84
+                      target_region: Eastern Mediterranean
+                      target_country: Syria
+                      summary: Recent US/NATO-linked strike coverage is clustering around Syria and nearby force-posture reporting.
+                      assessed_article_count: 8
+                      freshness_score: 0.91
 
   /api/v1/pizza-index/targets:
     get:
@@ -609,13 +947,352 @@ components:
           format: date-time
         region_focus:
           type: string
-          description: Geographic or analytic focus of the current snapshot
+          description: Inferred suspicious region for the current snapshot, derived from the highest concentration of suspicious military-adjacent flights
         features:
           $ref: "#/components/schemas/FeatureVector"
         sources:
           type: array
           items:
             $ref: "#/components/schemas/SignalSource"
+
+    SignalSourceRefreshRequest:
+      type: object
+      additionalProperties: false
+      required: [source_name]
+      properties:
+        source_name:
+          type: string
+
+    SignalSourceRefreshResponse:
+      type: object
+      additionalProperties: false
+      required: [source, snapshot]
+      properties:
+        source:
+          $ref: "#/components/schemas/SignalSource"
+        snapshot:
+          $ref: "#/components/schemas/SignalSnapshot"
+
+    OpenSkySignalRefreshResponse:
+      type: object
+      additionalProperties: false
+      required: [source, snapshot, assessment]
+      properties:
+        source:
+          $ref: "#/components/schemas/SignalSource"
+        snapshot:
+          $ref: "#/components/schemas/SignalSnapshot"
+        assessment:
+          $ref: "#/components/schemas/OpenSkyStrikeAssessment"
+
+    GdeltAssessmentStatus:
+      type: string
+      enum: [ready, disabled, error]
+
+    GdeltSignalAssessment:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - prompt_version
+        - probability_percent
+        - target_region
+        - target_country
+        - summary
+        - assessed_article_count
+        - freshness_score
+      properties:
+        status:
+          $ref: "#/components/schemas/GdeltAssessmentStatus"
+        prompt_version:
+          type: string
+        probability_percent:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 100
+        target_region:
+          type:
+            - string
+            - "null"
+        target_country:
+          type:
+            - string
+            - "null"
+        summary:
+          type: string
+        assessed_article_count:
+          type: integer
+          minimum: 0
+        freshness_score:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    GdeltSignalRefreshResponse:
+      type: object
+      additionalProperties: false
+      required: [source, snapshot, assessment]
+      properties:
+        source:
+          $ref: "#/components/schemas/SignalSource"
+        snapshot:
+          $ref: "#/components/schemas/SignalSnapshot"
+        assessment:
+          $ref: "#/components/schemas/GdeltSignalAssessment"
+
+    OpenSkyAnomaly:
+      type: object
+      additionalProperties: false
+      required: [icao24, reasons]
+      properties:
+        icao24:
+          type: string
+        callsign:
+          type:
+            - string
+            - "null"
+        origin_country:
+          type:
+            - string
+            - "null"
+        latitude:
+          type:
+            - number
+            - "null"
+        longitude:
+          type:
+            - number
+            - "null"
+        baro_altitude:
+          type:
+            - number
+            - "null"
+        velocity:
+          type:
+            - number
+            - "null"
+        geo_altitude:
+          type:
+            - number
+            - "null"
+        reasons:
+          type: array
+          items:
+            type: string
+
+    OpenSkyAnomaliesResponse:
+      type: object
+      additionalProperties: false
+      required: [generated_at, status, flight_anomaly, assessment, anomalies]
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [planned, active, degraded]
+        flight_anomaly:
+          type: number
+          minimum: 0
+          maximum: 1
+        assessment:
+          $ref: "#/components/schemas/OpenSkyStrikeAssessment"
+        anomalies:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpenSkyAnomaly"
+
+    OpenSkyAssessmentStatus:
+      type: string
+      enum: [ready, disabled, error]
+
+    OpenSkyStrikeAssessment:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - prompt_version
+        - probability_percent
+        - countries
+        - explanation
+      properties:
+        status:
+          $ref: "#/components/schemas/OpenSkyAssessmentStatus"
+        prompt_version:
+          type: string
+        probability_percent:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 100
+        countries:
+          type: array
+          items:
+            type: string
+        explanation:
+          type:
+            - string
+            - "null"
+
+    GdeltCountBreakdown:
+      type: object
+      additionalProperties: false
+      required: [label, count]
+      properties:
+        label:
+          type: string
+        count:
+          type: integer
+          minimum: 0
+
+    GdeltHeadline:
+      type: object
+      additionalProperties: false
+      required:
+        - article_id
+        - title
+        - source_label
+        - is_alert
+        - is_us_nato_actor
+        - is_action_indicative
+        - freshness_score
+        - themes
+        - regions
+      properties:
+        article_id:
+          type: string
+        title:
+          type: string
+        source:
+          type:
+            - string
+            - "null"
+        source_label:
+          type: string
+        published_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        url:
+          type:
+            - string
+            - "null"
+        is_alert:
+          type: boolean
+        is_us_nato_actor:
+          type: boolean
+        is_action_indicative:
+          type: boolean
+        freshness_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        themes:
+          type: array
+          items:
+            type: string
+        regions:
+          type: array
+          items:
+            type: string
+
+    GdeltProvenance:
+      type: object
+      additionalProperties: false
+      required:
+        - source_url_configured
+        - keyword_watchlist
+        - theme_derivation
+        - region_derivation
+        - comparison_basis
+      properties:
+        source_url_configured:
+          type: boolean
+        keyword_watchlist:
+          type: array
+          items:
+            type: string
+        theme_derivation:
+          type: string
+        region_derivation:
+          type: string
+        comparison_basis:
+          type: string
+
+    GdeltDetailResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - generated_at
+        - status
+        - news_volume
+        - article_count
+        - alert_article_count
+        - signal_article_count
+        - freshness_score
+        - alert_share
+        - top_regions
+        - top_themes
+        - top_sources
+        - headlines
+        - assessment
+        - provenance
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [planned, active, degraded]
+        news_volume:
+          type: number
+          minimum: 0
+          maximum: 1
+        article_count:
+          type: integer
+          minimum: 0
+        alert_article_count:
+          type: integer
+          minimum: 0
+        signal_article_count:
+          type: integer
+          minimum: 0
+        freshness_score:
+          type: number
+          minimum: 0
+          maximum: 1
+        alert_share:
+          type: number
+          minimum: 0
+          maximum: 1
+        volume_delta:
+          type:
+            - number
+            - "null"
+        top_regions:
+          type: array
+          items:
+            $ref: "#/components/schemas/GdeltCountBreakdown"
+        top_themes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GdeltCountBreakdown"
+        top_sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/GdeltCountBreakdown"
+        headlines:
+          type: array
+          items:
+            $ref: "#/components/schemas/GdeltHeadline"
+        assessment:
+          $ref: "#/components/schemas/GdeltSignalAssessment"
+        provenance:
+          $ref: "#/components/schemas/GdeltProvenance"
 
     RiskScoreRequest:
       type: object
