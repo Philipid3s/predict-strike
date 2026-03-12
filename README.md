@@ -99,6 +99,21 @@ cp backend/.env.example backend/.env
 
 2. Start the services:
 
+From the project root you can use the wrapper command:
+
+```powershell
+.\run-dev.ps1
+```
+
+It forwards to the existing compose dev runtime. Any extra flags are passed
+through, for example:
+
+```powershell
+.\run-dev.ps1 -d
+```
+
+You can still run compose directly if preferred:
+
 ```bash
 docker compose -f docker-compose.dev.yml up --build
 ```

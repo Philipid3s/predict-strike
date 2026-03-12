@@ -5,3 +5,5 @@ __pycache__
 .pytest_cache
 .venv
 predict-strike.db
+pytest-cache-files-*
+pytest-cache-files-*/
