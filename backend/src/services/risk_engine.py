@@ -14,12 +14,12 @@ FEATURE_ORDER = (
 )
 
 DEFAULT_WEIGHTS: dict[str, float] = {
-    "flight_anomaly": 0.30,
-    "notam_spike": 0.15,
-    "satellite_buildup": 0.15,
-    "news_volume": 0.20,
-    "osint_activity": 0.10,
-    "pizza_index": 0.10,
+    "flight_anomaly": 0.40,
+    "notam_spike": 0.20,
+    "satellite_buildup": 0.00,
+    "news_volume": 0.2667,
+    "osint_activity": 0.00,
+    "pizza_index": 0.1333,
 }
 
 WATCH_THRESHOLD = 0.40

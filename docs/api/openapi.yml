@@ -700,33 +700,33 @@ paths:
               examples:
                 default:
                   value:
-                    score: 0.42
+                    score: 0.508
                     classification: watch
                     breakdown:
                       - feature: flight_anomaly
                         value: 0.68
-                        weight: 0.3
-                        contribution: 0.204
+                        weight: 0.4
+                        contribution: 0.272
                       - feature: notam_spike
                         value: 0.34
-                        weight: 0.15
-                        contribution: 0.051
+                        weight: 0.2
+                        contribution: 0.068
                       - feature: satellite_buildup
                         value: 0.21
-                        weight: 0.15
-                        contribution: 0.0315
+                        weight: 0.0
+                        contribution: 0.0
                       - feature: news_volume
                         value: 0.57
-                        weight: 0.2
-                        contribution: 0.114
+                        weight: 0.2667
+                        contribution: 0.152
                       - feature: osint_activity
                         value: 0.46
-                        weight: 0.1
-                        contribution: 0.046
+                        weight: 0.0
+                        contribution: 0.0
                       - feature: pizza_index
                         value: 0.12
-                        weight: 0.1
-                        contribution: 0.012
+                        weight: 0.1333
+                        contribution: 0.016
                     thresholds:
                       watch: 0.4
                       alert: 0.65

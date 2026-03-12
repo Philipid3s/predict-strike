@@ -44,7 +44,12 @@ const snapshotPayload = {
 const riskPayload = {
   score: 0.42,
   classification: 'watch',
-  breakdown: [],
+  breakdown: [
+    { feature: 'flight_anomaly', value: 0.68, weight: 0.4, contribution: 0.272 },
+    { feature: 'notam_spike', value: 0.34, weight: 0.2, contribution: 0.068 },
+    { feature: 'news_volume', value: 0.57, weight: 0.2667, contribution: 0.152 },
+    { feature: 'pizza_index', value: 0.46, weight: 0.1333, contribution: 0.0613 },
+  ],
   thresholds: {
     watch: 0.35,
     alert: 0.65,
@@ -343,6 +348,13 @@ function getMetricValue(ariaLabel: string, label: string) {
   return metricCard?.querySelector('.metric-card__value')?.textContent ?? null;
 }
 
+function getFeatureValue(label: string) {
+  const featureTiles = Array.from(document.querySelectorAll('.feature-tile'));
+  const featureTile = featureTiles.find((tile) => tile.querySelector('span')?.textContent === label);
+
+  return featureTile?.querySelector('strong')?.textContent ?? null;
+}
+
 describe('App', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
   let riskScoreCallCount: number;
@@ -430,13 +442,19 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText(/42% Watch/i)).toBeInTheDocument();
+    expect(getFeatureValue('OpenSky Network')).toBe('68%');
+    expect(getFeatureValue('NOTAM Feed')).toBe('34%');
+    expect(getFeatureValue('GDELT')).toBe('57%');
+    expect(getFeatureValue('Pizza Index Activity')).toBe('46%');
+    expect(screen.getByText(/Weight: 40%/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/^Pizza Index Activity$/i).length).toBeGreaterThan(1);
     expect(screen.getByText(/No alerts recorded yet/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Data mode: Live/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Data mode: Static Baseline/i)).toBeInTheDocument();
     expect(screen.getByText(/Upstream gamma/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Will a direct strike occur in region X before June 2026\?/i).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /Refresh source OpenSky Network/i })).toBeEnabled();
-    expect(screen.getByRole('button', { name: /Refresh source Social OSINT/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Refresh source Social OSINT/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Social OSINT/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Satellite Monitoring/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Dashboard$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^OpenSky Network$/i })).toBeInTheDocument();
 
@@ -476,7 +494,7 @@ describe('App', () => {
 
     expect(await screen.findByText(/42% Watch/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole('button', { name: /View source detail/i })[0]);
+    fireEvent.click(screen.getByRole('button', { name: /^OpenSky Network$/i }));
 
     expect(await screen.findByRole('heading', { name: /OpenSky Network/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Back to Dashboard/i })).toBeInTheDocument();

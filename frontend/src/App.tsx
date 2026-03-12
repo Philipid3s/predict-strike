@@ -62,6 +62,8 @@ const EMPTY_STATE: DashboardState = {
   alertsTimestamp: null,
 };
 
+const PIZZA_INDEX_SOURCE_NAME = 'Pizza Index Activity';
+
 function getSourceTone(status: SignalSnapshot['sources'][number]['status']) {
   switch (status) {
     case 'active':
@@ -91,6 +93,45 @@ function formatSourceMode(mode: SourceMode) {
     default:
       return titleCase(mode);
   }
+}
+
+function buildPizzaIndexSource(snapshot: PizzaIndexSnapshotResponse): SignalSource {
+  const hasAnyCoverage =
+    snapshot.quality_summary.full_count + snapshot.quality_summary.partial_count > 0;
+  const hasCoverageGap =
+    snapshot.quality_summary.partial_count > 0 || snapshot.quality_summary.unavailable_count > 0;
+
+  return {
+    name: PIZZA_INDEX_SOURCE_NAME,
+    status: hasAnyCoverage ? (hasCoverageGap ? 'degraded' : 'active') : 'planned',
+    mode: hasCoverageGap ? 'fallback' : 'live',
+    last_checked_at: snapshot.generated_at,
+  };
+}
+
+function mergePizzaIndexIntoSnapshot(
+  snapshot: SignalSnapshot,
+  pizzaSnapshot: PizzaIndexSnapshotResponse | null,
+): SignalSnapshot {
+  if (!pizzaSnapshot) {
+    return snapshot;
+  }
+
+  const pizzaSource = buildPizzaIndexSource(pizzaSnapshot);
+  const existingIndex = snapshot.sources.findIndex((source) => source.name === PIZZA_INDEX_SOURCE_NAME);
+  const sources =
+    existingIndex >= 0
+      ? snapshot.sources.map((source, index) => (index === existingIndex ? pizzaSource : source))
+      : [...snapshot.sources, pizzaSource];
+
+  return {
+    ...snapshot,
+    features: {
+      ...snapshot.features,
+      pizza_index: pizzaSnapshot.pizza_index,
+    },
+    sources,
+  };
 }
 
 function getAlertTone(status: AlertRecord['status']) {
@@ -209,15 +250,16 @@ export default function App() {
     setRoute(nextRoute);
   }, []);
 
-  const hydrateDashboard = useCallback(async (snapshot: SignalSnapshot) => {
+  const hydrateDashboard = useCallback(async (snapshot: SignalSnapshot, pizzaSnapshot: PizzaIndexSnapshotResponse | null = null) => {
+    const mergedSnapshot = mergePizzaIndexIntoSnapshot(snapshot, pizzaSnapshot);
     const [risk, markets, alertHistory] = await Promise.all([
-      scoreRisk(snapshot.features),
+      scoreRisk(mergedSnapshot.features),
       getMarketOpportunities(),
       getAlerts(),
     ]);
 
     setDashboard({
-      signals: snapshot,
+      signals: mergedSnapshot,
       risk,
       opportunities: markets.opportunities,
       marketsGeneratedAt: markets.generated_at,
@@ -233,8 +275,12 @@ export default function App() {
     setError(null);
 
     try {
-      const snapshot = await getLatestSignals();
-      await hydrateDashboard(snapshot);
+      const [snapshot, latestPizzaIndex] = await Promise.all([
+        getLatestSignals(),
+        getLatestPizzaIndex().catch(() => null),
+      ]);
+      setPizzaIndex(latestPizzaIndex);
+      await hydrateDashboard(snapshot, latestPizzaIndex);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Failed to load dashboard data.');
     } finally {
@@ -461,13 +507,17 @@ export default function App() {
     try {
       const refreshed = await refreshPizzaIndex();
       setPizzaIndex(refreshed);
+      if (dashboard.signals) {
+        const mergedSnapshot = mergePizzaIndexIntoSnapshot(dashboard.signals, refreshed);
+        await updateDashboardSnapshotRisk(mergedSnapshot);
+      }
       setActionMessage('Pizza Index Activity refreshed from the latest monitored targets.');
     } catch (refreshError) {
       setPizzaError(refreshError instanceof Error ? refreshError.message : 'Failed to refresh Pizza Index Activity.');
     } finally {
       setIsRefreshingPizzaIndex(false);
     }
-  }, []);
+  }, [dashboard.signals, updateDashboardSnapshotRisk]);
 
   const topOpportunity = useMemo(() => {
     return dashboard.opportunities.reduce<MarketOpportunity | null>((best, current) => {
@@ -487,6 +537,37 @@ export default function App() {
     }
 
     return Object.entries(dashboard.signals.features) as Array<[keyof FeatureVector, number]>;
+  }, [dashboard.signals]);
+
+  const dashboardSourceDefinitions = useMemo(
+    () => SOURCE_DEFINITIONS.filter((source) => source.featureKey),
+    [],
+  );
+
+  const dashboardFeatureEntries = useMemo(() => {
+    if (!dashboard.signals || !dashboard.risk) {
+      return [];
+    }
+
+    return dashboardSourceDefinitions.map((source) => ({
+      featureKey: source.featureKey ?? null,
+      id: source.id,
+      label: source.name,
+      summary: source.summary,
+      value: source.featureKey ? dashboard.signals.features[source.featureKey] : null,
+      weight:
+        source.featureKey
+          ? dashboard.risk.breakdown.find((item) => item.feature === source.featureKey)?.weight ?? null
+          : null,
+    }));
+  }, [dashboard.risk, dashboard.signals, dashboardSourceDefinitions]);
+
+  const dashboardSignalSources = useMemo(() => {
+    if (!dashboard.signals) {
+      return [];
+    }
+
+    return dashboard.signals.sources.filter((source) => SOURCE_ID_BY_NAME[source.name]);
   }, [dashboard.signals]);
 
   const currentSourceDefinition = route.page === 'source' && route.sourceId ? SOURCE_BY_ID[route.sourceId] : null;
@@ -765,10 +846,16 @@ export default function App() {
               subtitle={`Snapshot captured ${formatDateTime(dashboard.signals.generated_at)}`}
             >
               <div className="feature-grid">
-                {featureEntries.map(([feature, value]) => (
-                  <div key={feature} className="feature-tile">
-                    <span>{labelizeFeature(feature)}</span>
-                    <strong>{formatPercent(value)}</strong>
+                {dashboardFeatureEntries.map((feature) => (
+                  <div key={feature.id} className="feature-tile feature-tile--dashboard">
+                    <div className="feature-tile__copy">
+                      <span>{feature.label}</span>
+                      <p>{feature.summary}</p>
+                      <p>
+                        Weight: {feature.weight === null ? 'Unavailable' : formatPercent(feature.weight)}
+                      </p>
+                    </div>
+                    <strong>{feature.value === null ? 'Unavailable' : formatPercent(feature.value)}</strong>
                   </div>
                 ))}
               </div>
@@ -776,7 +863,7 @@ export default function App() {
 
             <SectionCard title="Per-Source Status" subtitle="Collector health from the latest normalized snapshot">
               <div className="source-list">
-                {dashboard.signals.sources.map((source) => {
+                {dashboardSignalSources.map((source) => {
                   const sourceId = SOURCE_ID_BY_NAME[source.name];
                   const implementedSource = sourceId ? SOURCE_BY_ID[sourceId] : null;
                   return (
@@ -805,16 +892,6 @@ export default function App() {
                         </div>
                       </div>
                       <p>{implementedSource?.summary ?? 'Planned baseline source in the normalized snapshot.'}</p>
-                      <p>Data mode: {formatSourceMode(source.mode)}</p>
-                      <p>Last checked: {formatDateTime(source.last_checked_at)}</p>
-                      {implementedSource ? (
-                        <button
-                          className="link-button"
-                          onClick={() => navigate({ page: 'source', sourceId: implementedSource.id })}
-                        >
-                          View source detail
-                        </button>
-                      ) : null}
                     </article>
                   );
                 })}

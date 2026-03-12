@@ -350,6 +350,21 @@ select {
   align-items: center;
 }
 
+.feature-tile--dashboard {
+  align-items: flex-start;
+}
+
+.feature-tile__copy {
+  display: grid;
+  gap: 6px;
+}
+
+.feature-tile__copy p {
+  margin: 0;
+  color: #9fb0c7;
+  font-size: 0.92rem;
+}
+
 .feature-tile span,
 .source-card p,
 .table-question span {

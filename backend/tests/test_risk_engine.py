@@ -52,6 +52,17 @@ class RiskEngineTests(unittest.TestCase):
         self.assertLess(result.score, ALERT_THRESHOLD)
         self.assertEqual(result.classification, "watch")
 
+    def test_default_weights_only_allocate_score_to_active_signals(self) -> None:
+        weights = normalize_weights()
+
+        self.assertAlmostEqual(sum(weights.values()), 1.0)
+        self.assertEqual(weights["satellite_buildup"], 0.0)
+        self.assertEqual(weights["osint_activity"], 0.0)
+        self.assertEqual(weights["flight_anomaly"], DEFAULT_WEIGHTS["flight_anomaly"])
+        self.assertEqual(weights["notam_spike"], DEFAULT_WEIGHTS["notam_spike"])
+        self.assertEqual(weights["news_volume"], DEFAULT_WEIGHTS["news_volume"])
+        self.assertEqual(weights["pizza_index"], DEFAULT_WEIGHTS["pizza_index"])
+
     def test_weight_overrides_are_normalized(self) -> None:
         weights = normalize_weights(
             {
@@ -65,7 +76,8 @@ class RiskEngineTests(unittest.TestCase):
         )
 
         self.assertAlmostEqual(sum(weights.values()), 1.0)
-        self.assertGreater(weights["flight_anomaly"], DEFAULT_WEIGHTS["flight_anomaly"])
+        self.assertAlmostEqual(weights["flight_anomaly"], 0.375)
+        self.assertGreater(weights["flight_anomaly"], weights["notam_spike"])
 
 
 if __name__ == "__main__":

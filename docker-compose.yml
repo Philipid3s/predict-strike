@@ -6,9 +6,12 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${FRONTEND_VITE_API_URL:-http://localhost:8000}
+        VITE_API_URL: /api
     ports:
       - "80:80"
+    environment:
+      BASIC_AUTH_USERNAME: ${FRONTEND_BASIC_AUTH_USERNAME}
+      BASIC_AUTH_PASSWORD: ${FRONTEND_BASIC_AUTH_PASSWORD}
     depends_on:
       - backend
     restart: unless-stopped
@@ -17,8 +20,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     env_file:
       - ./backend/.env
     restart: unless-stopped

@@ -18,11 +18,13 @@ class OperatorDashboardUiAcceptanceTests(unittest.TestCase):
         expected_markers = [
             "Operator Dashboard",
             'aria-label="Main indicators"',
+            "Feature Snapshot",
             "Per-Source Status",
-            "Data mode:",
+            "Weight:",
+            "dashboardFeatureEntries",
+            "dashboardSignalSources",
             "Alert History",
             "Polymarket Opportunities",
-            "Source ",
             "Refresh Signals",
             "Evaluate Alerts",
         ]
@@ -65,10 +67,11 @@ class OperatorDashboardUiAcceptanceTests(unittest.TestCase):
             "Evaluate Alerts",
             "created 1 new alert",
             "No alerts recorded yet",
-            "Data mode: Live",
             "mode: 'fallback'",
-            "Static Baseline",
-            "Data mode: Static Baseline",
+            "Weight: 40%",
+            "Pizza Index Activity",
+            "Satellite Monitoring",
+            "Social OSINT",
         ]
 
         for marker in expected_markers:
@@ -81,3 +84,4 @@ class OperatorDashboardUiAcceptanceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
