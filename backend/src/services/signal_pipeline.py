@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from collections import Counter
 from typing import Any
 
@@ -17,7 +17,6 @@ from src.collectors.notam import NotamCollector
 from src.collectors.opensky import (
     OpenSkyCollector,
     assess_opensky_anomalies,
-    compute_flight_anomaly,
     dominant_suspicious_region_name,
     parse_states,
 )
@@ -35,6 +34,7 @@ from src.models.schemas import (
     OpenSkyAnomaly,
     OpenSkySignalRefreshResponse,
     OpenSkyStrikeAssessment,
+    PizzaIndexSnapshotResponse,
     SignalSource,
     SignalSourceRefreshResponse,
 )
@@ -55,6 +55,10 @@ from src.services.opensky_assessment import (
     derive_region_focus_from_assessment,
     probability_to_signal_feature,
 )
+from src.services.pizza_index_pipeline import (
+    build_latest_snapshot as load_latest_pizza_index_snapshot,
+    refresh_snapshot as load_refreshed_pizza_index_snapshot,
+)
 from src.storage.signal_store import SignalStore
 
 
@@ -67,12 +71,14 @@ BASELINE_FEATURES = FeatureSet(
     pizza_index=0.18,
 )
 
-
-STATIC_BASELINE_SOURCE_NAMES = (
-    "Satellite Monitoring",
-    "Social OSINT",
+DASHBOARD_SOURCE_NAMES = (
+    "OpenSky Network",
+    "NOTAM Feed",
+    "GDELT",
     "Pizza Index Activity",
 )
+
+SIGNAL_REFRESH_SOURCE_NAMES = {"OpenSky Network", "GDELT"}
 
 
 @dataclass(frozen=True)
@@ -81,17 +87,6 @@ class CollectedSourceObservation:
     collected_at: datetime
     status: str
     payload: dict[str, Any]
-
-
-@dataclass(frozen=True)
-class CollectedSignalInputs:
-    generated_at: datetime
-    region_focus: str
-    flight_anomaly: float
-    notam_spike: float
-    news_volume: float
-    sources: list[SignalSource]
-    observations: list[CollectedSourceObservation]
 
 
 @dataclass(frozen=True)
@@ -105,6 +100,10 @@ class SingleSourceRefreshResult:
 
 def _mode_from_source_status(status: str) -> str:
     return "live" if status == "active" else "fallback"
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
 
 
 def _gdelt_feature_value(
@@ -204,145 +203,101 @@ def _build_opensky_manual_assessment() -> OpenSkyStrikeAssessment:
     )
 
 
-def _static_baseline_sources() -> list[SignalSource]:
-    return [
-        SignalSource(name=name, status="planned", mode="static_baseline", last_checked_at=None)
-        for name in STATIC_BASELINE_SOURCE_NAMES
-    ]
+def _build_pizza_index_source(snapshot: PizzaIndexSnapshotResponse) -> SignalSource:
+    has_any_coverage = (
+        snapshot.quality_summary.full_count + snapshot.quality_summary.partial_count > 0
+    )
+    has_coverage_gap = (
+        snapshot.quality_summary.partial_count > 0
+        or snapshot.quality_summary.unavailable_count > 0
+    )
+    status = "planned"
+    mode = "static_baseline"
+    if has_any_coverage:
+        status = "degraded" if has_coverage_gap else "active"
+        mode = "fallback" if has_coverage_gap else "live"
+    return SignalSource(
+        name="Pizza Index Activity",
+        status=status,
+        mode=mode,
+        last_checked_at=snapshot.generated_at,
+    )
+
+
+def _pizza_index_observation(snapshot: PizzaIndexSnapshotResponse) -> CollectedSourceObservation:
+    source = _build_pizza_index_source(snapshot)
+    return CollectedSourceObservation(
+        source_name=source.name,
+        collected_at=snapshot.generated_at,
+        status=source.status,
+        payload=snapshot.model_dump(mode="json"),
+    )
 
 
 def _snapshot_matches_current_contract(snapshot: LatestSignalsResponse) -> bool:
     source_names = {source.name for source in snapshot.sources}
-    return (
-        all(name in source_names for name in STATIC_BASELINE_SOURCE_NAMES)
-        and "Polymarket" not in source_names
-    )
+    return source_names == set(DASHBOARD_SOURCE_NAMES)
 
 
-def build_snapshot_from_sources() -> LatestSignalsResponse:
-    return _snapshot_from_inputs(_collect_signal_inputs())
-
-
-def _collect_signal_inputs() -> CollectedSignalInputs:
-    settings = get_settings()
-    opensky_observation = OpenSkyCollector().fetch_observation()
-    notam_observation = NotamCollector(
-        source_url=settings.notam_source_url
-    ).fetch_observation()
-    gdelt_observation = GdeltCollector(
-        source_url=settings.gdelt_source_url,
-        timeout_seconds=settings.gdelt_timeout_seconds,
-    ).fetch_observation()
-    gdelt_assessment = GdeltStrikeAssessmentService(
-        GdeltAssessmentConfig(
-            api_url=settings.gdelt_ai_api_url,
-            api_key=settings.gdelt_ai_api_key,
-            model=settings.gdelt_ai_model,
-            timeout_seconds=settings.gdelt_ai_timeout_seconds,
-        )
-    ).assess_articles(gdelt_observation.articles)
-    generated_at = max(
-        opensky_observation.collected_at,
-        notam_observation.collected_at,
-        gdelt_observation.collected_at,
-    )
-    return CollectedSignalInputs(
-        generated_at=generated_at,
-        region_focus=dominant_suspicious_region_name(opensky_observation.states) or "none",
-        flight_anomaly=BASELINE_FEATURES.flight_anomaly,
-        notam_spike=notam_observation.notam_spike,
-        news_volume=_gdelt_feature_value(
-            assessment=gdelt_assessment,
-            heuristic_news_volume=gdelt_observation.news_volume,
-        ),
-        sources=[
-            SignalSource(
-                name="OpenSky Network",
-                status=opensky_observation.status,
-                mode=_mode_from_source_status(opensky_observation.status),
-                last_checked_at=opensky_observation.collected_at,
-            ),
-            SignalSource(
-                name="NOTAM Feed",
-                status=notam_observation.status,
-                mode=_mode_from_source_status(notam_observation.status),
-                last_checked_at=notam_observation.collected_at,
-            ),
-            SignalSource(
-                name="GDELT",
-                status=gdelt_observation.status,
-                mode=_mode_from_source_status(gdelt_observation.status),
-                last_checked_at=gdelt_observation.collected_at,
-            ),
-            *_static_baseline_sources(),
-        ],
-        observations=[
-            CollectedSourceObservation(
-                source_name="OpenSky Network",
-                collected_at=opensky_observation.collected_at,
-                status=opensky_observation.status,
-                payload=opensky_observation.raw_payload,
-            ),
-            CollectedSourceObservation(
-                source_name="NOTAM Feed",
-                collected_at=notam_observation.collected_at,
-                status=notam_observation.status,
-                payload=notam_observation.raw_payload,
-            ),
-            CollectedSourceObservation(
-                source_name="GDELT",
-                collected_at=gdelt_observation.collected_at,
-                status=gdelt_observation.status,
-                payload=_gdelt_payload_for_storage(
-                    gdelt_observation.raw_payload,
-                    gdelt_observation.fallback_reason,
-                ),
-            ),
-        ],
-    )
-
-
-def _snapshot_from_inputs(inputs: CollectedSignalInputs) -> LatestSignalsResponse:
+def _blank_snapshot() -> LatestSignalsResponse:
     return LatestSignalsResponse(
-        generated_at=inputs.generated_at,
-        region_focus=inputs.region_focus,
-        features=BASELINE_FEATURES.model_copy(
-            update={
-                "flight_anomaly": inputs.flight_anomaly,
-                "notam_spike": inputs.notam_spike,
-                "news_volume": inputs.news_volume,
-            }
-        ),
-        sources=inputs.sources,
+        generated_at=_utc_now(),
+        region_focus="none",
+        features=BASELINE_FEATURES,
+        sources=[],
     )
 
 
-def refresh_latest_snapshot() -> LatestSignalsResponse:
-    settings = get_settings()
-    store = SignalStore(settings.database_url)
-    inputs = _collect_signal_inputs()
-    for observation in inputs.observations:
-        store.save_source_observation(
-            source_name=observation.source_name,
-            collected_at=observation.collected_at,
-            status=observation.status,
-            payload=observation.payload,
-        )
-    snapshot = _snapshot_from_inputs(inputs)
+def _replace_source(
+    sources: list[SignalSource], updated_source: SignalSource
+) -> list[SignalSource]:
+    replaced = False
+    updated_sources: list[SignalSource] = []
+    for source in sources:
+        if source.name == updated_source.name:
+            updated_sources.append(updated_source)
+            replaced = True
+        else:
+            updated_sources.append(source)
+    if not replaced:
+        updated_sources.append(updated_source)
+    return updated_sources
+
+
+def _save_snapshot_projection(
+    store: SignalStore,
+    latest_snapshot: LatestSignalsResponse,
+    *,
+    source: SignalSource | None = None,
+    feature_updates: dict[str, float] | None = None,
+    region_focus: str | None = None,
+    generated_at: datetime | None = None,
+) -> LatestSignalsResponse:
+    updated_sources = latest_snapshot.sources
+    if source is not None:
+        updated_sources = _replace_source(latest_snapshot.sources, source)
+
+    candidates = [latest_snapshot.generated_at]
+    if generated_at is not None:
+        candidates.append(generated_at)
+    if source is not None and source.last_checked_at is not None:
+        candidates.append(source.last_checked_at)
+
+    snapshot = LatestSignalsResponse(
+        generated_at=max(candidates),
+        region_focus=region_focus or latest_snapshot.region_focus,
+        features=latest_snapshot.features.model_copy(update=feature_updates or {}),
+        sources=updated_sources,
+    )
     return store.save_signal_snapshot(snapshot)
 
 
-def get_or_create_latest_snapshot() -> LatestSignalsResponse:
-    settings = get_settings()
-    store = SignalStore(settings.database_url)
-    snapshot = store.get_latest_signal_snapshot()
-    if snapshot is not None and _snapshot_matches_current_contract(snapshot):
-        return snapshot
+def build_snapshot_from_sources() -> LatestSignalsResponse:
     return refresh_latest_snapshot()
 
 
 def _refreshable_source_names() -> set[str]:
-    return {"OpenSky Network", "NOTAM Feed", "GDELT"}
+    return set(DASHBOARD_SOURCE_NAMES)
 
 
 def _collect_single_source(source_name: str) -> SingleSourceRefreshResult:
@@ -352,14 +307,14 @@ def _collect_single_source(source_name: str) -> SingleSourceRefreshResult:
         observation = OpenSkyCollector().fetch_observation()
         feature_name = None
         feature_value = None
-        region_focus = None
+        payload = _opensky_payload_with_assessment(observation.raw_payload, None)
     elif source_name == "NOTAM Feed":
         observation = NotamCollector(
             source_url=settings.notam_source_url
         ).fetch_observation()
         feature_name = "notam_spike"
         feature_value = observation.notam_spike
-        region_focus = None
+        payload = observation.raw_payload
     elif source_name == "GDELT":
         observation = GdeltCollector(
             source_url=settings.gdelt_source_url,
@@ -367,7 +322,23 @@ def _collect_single_source(source_name: str) -> SingleSourceRefreshResult:
         ).fetch_observation()
         feature_name = None
         feature_value = None
-        region_focus = None
+        payload = _gdelt_payload_with_assessment(
+            _gdelt_payload_for_storage(
+                observation.raw_payload,
+                observation.fallback_reason,
+            ),
+            None,
+        )
+    elif source_name == "Pizza Index Activity":
+        pizza_snapshot = load_refreshed_pizza_index_snapshot()
+        source = _build_pizza_index_source(pizza_snapshot)
+        pizza_observation = _pizza_index_observation(pizza_snapshot)
+        return SingleSourceRefreshResult(
+            feature_name="pizza_index",
+            feature_value=pizza_snapshot.pizza_index,
+            observation=pizza_observation,
+            source=source,
+        )
     else:
         raise ValueError(f"Signal source does not support individual refresh: {source_name}")
 
@@ -384,67 +355,40 @@ def _collect_single_source(source_name: str) -> SingleSourceRefreshResult:
             source_name=source_name,
             collected_at=observation.collected_at,
             status=observation.status,
-            payload=(
-                _gdelt_payload_for_storage(
-                    observation.raw_payload,
-                    observation.fallback_reason,
-                )
-                if source_name == "GDELT"
-                else observation.raw_payload
-            ),
+            payload=payload,
         ),
         source=source,
-        region_focus=region_focus,
     )
 
 
-def refresh_signal_source(source_name: str) -> SignalSourceRefreshResponse:
-    if source_name not in _refreshable_source_names():
-        raise ValueError(f"Signal source does not support individual refresh: {source_name}")
-
-    settings = get_settings()
-    store = SignalStore(settings.database_url)
-    latest_snapshot = get_or_create_latest_snapshot()
+def _persist_source_only_refresh(
+    store: SignalStore,
+    latest_snapshot: LatestSignalsResponse,
+    source_name: str,
+) -> SignalSourceRefreshResponse:
     refresh_result = _collect_single_source(source_name)
-
     store.save_source_observation(
         source_name=refresh_result.observation.source_name,
         collected_at=refresh_result.observation.collected_at,
         status=refresh_result.observation.status,
-        payload=(
-            _gdelt_payload_with_assessment(refresh_result.observation.payload, None)
-            if refresh_result.observation.source_name == "GDELT"
-            else refresh_result.observation.payload
-        ),
+        payload=refresh_result.observation.payload,
     )
 
-    updated_sources = [
-        refresh_result.source if source.name == source_name else source
-        for source in latest_snapshot.sources
-    ]
-    updated_snapshot = LatestSignalsResponse(
-        generated_at=max(
-            [
-                latest_snapshot.generated_at,
-                refresh_result.observation.collected_at,
-                *[
-                    source.last_checked_at
-                    for source in updated_sources
-                    if source.last_checked_at is not None
-                ],
-            ]
-        ),
-        region_focus=refresh_result.region_focus or latest_snapshot.region_focus,
-        features=latest_snapshot.features.model_copy(
-            update=(
-                {refresh_result.feature_name: refresh_result.feature_value}
-                if refresh_result.feature_name and refresh_result.feature_value is not None
-                else {}
-            )
-        ),
-        sources=updated_sources,
+    feature_updates: dict[str, float] = {}
+    if (
+        refresh_result.feature_name is not None
+        and refresh_result.feature_value is not None
+        and source_name not in SIGNAL_REFRESH_SOURCE_NAMES
+    ):
+        feature_updates[refresh_result.feature_name] = refresh_result.feature_value
+
+    persisted_snapshot = _save_snapshot_projection(
+        store,
+        latest_snapshot,
+        source=refresh_result.source,
+        feature_updates=feature_updates,
+        generated_at=refresh_result.observation.collected_at,
     )
-    persisted_snapshot = store.save_signal_snapshot(updated_snapshot)
     refreshed_source = next(
         source for source in persisted_snapshot.sources if source.name == source_name
     )
@@ -454,28 +398,100 @@ def refresh_signal_source(source_name: str) -> SignalSourceRefreshResponse:
     )
 
 
+def refresh_source_detail(source_name: str) -> SignalSourceRefreshResponse:
+    if source_name not in _refreshable_source_names():
+        raise ValueError(f"Signal source does not support individual refresh: {source_name}")
+
+    settings = get_settings()
+    store = SignalStore(settings.database_url)
+    latest_snapshot = store.get_latest_signal_snapshot()
+    if latest_snapshot is None or not _snapshot_matches_current_contract(latest_snapshot):
+        latest_snapshot = refresh_latest_snapshot()
+    return _persist_source_only_refresh(store, latest_snapshot, source_name)
+
+
+def _ensure_latest_source_payload(
+    store: SignalStore,
+    latest_snapshot: LatestSignalsResponse,
+    source_name: str,
+) -> tuple[LatestSignalsResponse, dict[str, Any]]:
+    latest = store.get_latest_source_observation(source_name)
+    if latest is not None:
+        return latest_snapshot, latest
+
+    source_refresh = _persist_source_only_refresh(store, latest_snapshot, source_name)
+    latest = store.get_latest_source_observation(source_name)
+    if latest is None:
+        raise RuntimeError(f"No stored source observation is available for {source_name}")
+    return source_refresh.snapshot, latest
+
+
+def get_or_create_latest_snapshot() -> LatestSignalsResponse:
+    settings = get_settings()
+    store = SignalStore(settings.database_url)
+    snapshot = store.get_latest_signal_snapshot()
+    if snapshot is not None and _snapshot_matches_current_contract(snapshot):
+        return snapshot
+    return refresh_latest_snapshot()
+
+
+def refresh_latest_snapshot() -> LatestSignalsResponse:
+    settings = get_settings()
+    store = SignalStore(settings.database_url)
+    latest_snapshot = store.get_latest_signal_snapshot()
+    if latest_snapshot is None or not _snapshot_matches_current_contract(latest_snapshot):
+        latest_snapshot = _blank_snapshot()
+
+    for source_name in DASHBOARD_SOURCE_NAMES:
+        source_refresh = _persist_source_only_refresh(store, latest_snapshot, source_name)
+        latest_snapshot = source_refresh.snapshot
+        if source_name == "OpenSky Network":
+            latest_snapshot = _refresh_opensky_signal_from_snapshot(store, latest_snapshot).snapshot
+        elif source_name == "GDELT":
+            latest_snapshot = _refresh_gdelt_signal_from_snapshot(store, latest_snapshot).snapshot
+
+    return latest_snapshot
+
+
+def refresh_signal_source(source_name: str) -> SignalSourceRefreshResponse:
+    if source_name not in _refreshable_source_names():
+        raise ValueError(f"Signal source does not support individual refresh: {source_name}")
+
+    settings = get_settings()
+    store = SignalStore(settings.database_url)
+    latest_snapshot = store.get_latest_signal_snapshot()
+    if latest_snapshot is None or not _snapshot_matches_current_contract(latest_snapshot):
+        latest_snapshot = refresh_latest_snapshot()
+
+    source_refresh = _persist_source_only_refresh(store, latest_snapshot, source_name)
+    if source_name == "OpenSky Network":
+        signal_refresh = _refresh_opensky_signal_from_snapshot(store, source_refresh.snapshot)
+        return SignalSourceRefreshResponse(
+            source=signal_refresh.source,
+            snapshot=signal_refresh.snapshot,
+        )
+    if source_name == "GDELT":
+        signal_refresh = _refresh_gdelt_signal_from_snapshot(store, source_refresh.snapshot)
+        return SignalSourceRefreshResponse(
+            source=signal_refresh.source,
+            snapshot=signal_refresh.snapshot,
+        )
+    return source_refresh
+
+
 def get_latest_opensky_anomalies() -> OpenSkyAnomaliesResponse:
     settings = get_settings()
     store = SignalStore(settings.database_url)
     latest = store.get_latest_source_observation("OpenSky Network")
 
     if latest is None:
-        observation = OpenSkyCollector().fetch_observation()
-        store.save_source_observation(
-            source_name="OpenSky Network",
-            collected_at=observation.collected_at,
-            status=observation.status,
-            payload=_opensky_payload_with_assessment(observation.raw_payload, None),
-        )
-        collected_at = observation.collected_at
-        status = observation.status
-        states = observation.states
-        cached_assessment = None
-    else:
-        collected_at = datetime.fromisoformat(latest["collected_at"])
-        status = latest["status"]
-        states = parse_states(latest["payload"])
-        cached_assessment = _opensky_assessment_from_payload(latest["payload"])
+        latest_snapshot = store.get_latest_signal_snapshot() or _blank_snapshot()
+        _, latest = _ensure_latest_source_payload(store, latest_snapshot, "OpenSky Network")
+
+    collected_at = datetime.fromisoformat(latest["collected_at"])
+    status = latest["status"]
+    states = parse_states(latest["payload"])
+    cached_assessment = _opensky_assessment_from_payload(latest["payload"])
 
     anomaly_assessments = assess_opensky_anomalies(states)
     anomalies: list[OpenSkyAnomaly] = []
@@ -506,13 +522,22 @@ def get_latest_opensky_anomalies() -> OpenSkyAnomaliesResponse:
     )
 
 
-def refresh_opensky_signal() -> OpenSkySignalRefreshResponse:
-    settings = get_settings()
-    store = SignalStore(settings.database_url)
-    latest_snapshot = get_or_create_latest_snapshot()
-    refresh_result = _collect_single_source("OpenSky Network")
-    states = parse_states(refresh_result.observation.payload)
+def _refresh_opensky_signal_from_snapshot(
+    store: SignalStore, latest_snapshot: LatestSignalsResponse
+) -> OpenSkySignalRefreshResponse:
+    latest_snapshot, latest = _ensure_latest_source_payload(
+        store,
+        latest_snapshot,
+        "OpenSky Network",
+    )
+
+    collected_at = datetime.fromisoformat(latest["collected_at"])
+    status = latest["status"]
+    source_payload = dict(latest["payload"])
+    states = parse_states(source_payload)
     anomaly_assessments = assess_opensky_anomalies(states)
+
+    settings = get_settings()
     assessment = OpenSkyStrikeAssessmentService(
         OpenSkyAssessmentConfig(
             api_url=settings.opensky_ai_api_url,
@@ -523,40 +548,31 @@ def refresh_opensky_signal() -> OpenSkySignalRefreshResponse:
     ).assess_anomalies(anomaly_assessments)
 
     store.save_source_observation(
-        source_name=refresh_result.observation.source_name,
-        collected_at=refresh_result.observation.collected_at,
-        status=refresh_result.observation.status,
-        payload=_opensky_payload_with_assessment(
-            refresh_result.observation.payload,
-            assessment,
-        ),
+        source_name="OpenSky Network",
+        collected_at=collected_at,
+        status=status,
+        payload=_opensky_payload_with_assessment(source_payload, assessment),
     )
 
     refreshed_source = SignalSource(
         name="OpenSky Network",
-        status=refresh_result.observation.status,
-        mode=_mode_from_source_status(refresh_result.observation.status),
-        last_checked_at=refresh_result.observation.collected_at,
+        status=status,
+        mode=_mode_from_source_status(status),
+        last_checked_at=collected_at,
     )
-    updated_sources = [
-        refreshed_source if source.name == "OpenSky Network" else source
-        for source in latest_snapshot.sources
-    ]
-    current_region_focus = latest_snapshot.region_focus
-    updated_snapshot = LatestSignalsResponse(
-        generated_at=datetime.now(latest_snapshot.generated_at.tzinfo),
+    persisted_snapshot = _save_snapshot_projection(
+        store,
+        latest_snapshot,
+        source=refreshed_source,
+        feature_updates={
+            "flight_anomaly": probability_to_signal_feature(assessment)
+        },
         region_focus=derive_region_focus_from_assessment(
             assessment,
-            fallback=current_region_focus,
+            fallback=latest_snapshot.region_focus,
         ),
-        features=latest_snapshot.features.model_copy(
-            update={
-                "flight_anomaly": probability_to_signal_feature(assessment)
-            }
-        ),
-        sources=updated_sources,
+        generated_at=_utc_now(),
     )
-    persisted_snapshot = store.save_signal_snapshot(updated_snapshot)
     refreshed_source = next(
         source for source in persisted_snapshot.sources if source.name == "OpenSky Network"
     )
@@ -567,13 +583,26 @@ def refresh_opensky_signal() -> OpenSkySignalRefreshResponse:
     )
 
 
-def refresh_gdelt_signal() -> GdeltSignalRefreshResponse:
+def refresh_opensky_signal() -> OpenSkySignalRefreshResponse:
     settings = get_settings()
     store = SignalStore(settings.database_url)
-    latest_snapshot = get_or_create_latest_snapshot()
-    refresh_result = _collect_single_source("GDELT")
+    latest_snapshot = store.get_latest_signal_snapshot()
+    if latest_snapshot is None or not _snapshot_matches_current_contract(latest_snapshot):
+        latest_snapshot = refresh_latest_snapshot()
+    return _refresh_opensky_signal_from_snapshot(store, latest_snapshot)
 
-    articles = parse_articles(refresh_result.observation.payload)
+
+def _refresh_gdelt_signal_from_snapshot(
+    store: SignalStore, latest_snapshot: LatestSignalsResponse
+) -> GdeltSignalRefreshResponse:
+    latest_snapshot, latest = _ensure_latest_source_payload(store, latest_snapshot, "GDELT")
+
+    collected_at = datetime.fromisoformat(latest["collected_at"])
+    status = latest["status"]
+    source_payload = dict(latest["payload"])
+    articles = parse_articles(source_payload)
+
+    settings = get_settings()
     assessment = GdeltStrikeAssessmentService(
         GdeltAssessmentConfig(
             api_url=settings.gdelt_ai_api_url,
@@ -584,51 +613,33 @@ def refresh_gdelt_signal() -> GdeltSignalRefreshResponse:
     ).assess_articles(articles)
 
     store.save_source_observation(
-        source_name=refresh_result.observation.source_name,
-        collected_at=refresh_result.observation.collected_at,
-        status=refresh_result.observation.status,
-        payload=_gdelt_payload_with_assessment(
-            refresh_result.observation.payload,
-            assessment,
-        ),
+        source_name="GDELT",
+        collected_at=collected_at,
+        status=status,
+        payload=_gdelt_payload_with_assessment(source_payload, assessment),
     )
     refreshed_source = SignalSource(
         name="GDELT",
-        status=refresh_result.observation.status,
-        mode=_mode_from_source_status(refresh_result.observation.status),
-        last_checked_at=refresh_result.observation.collected_at,
+        status=status,
+        mode=_mode_from_source_status(status),
+        last_checked_at=collected_at,
     )
-    updated_sources = [
-        refreshed_source if source.name == "GDELT" else source
-        for source in latest_snapshot.sources
-    ]
-    updated_snapshot = LatestSignalsResponse(
-        generated_at=max(
-            [
-                latest_snapshot.generated_at,
-                refresh_result.observation.collected_at,
-                *[
-                    source.last_checked_at
-                    for source in updated_sources
-                    if source.last_checked_at is not None
-                ],
-            ]
-        ),
+    persisted_snapshot = _save_snapshot_projection(
+        store,
+        latest_snapshot,
+        source=refreshed_source,
+        feature_updates={
+            "news_volume": _gdelt_feature_value(
+                assessment=assessment,
+                heuristic_news_volume=compute_news_volume(articles),
+            )
+        },
         region_focus=derive_gdelt_region_focus_from_assessment(
             assessment,
             fallback=latest_snapshot.region_focus,
         ),
-        features=latest_snapshot.features.model_copy(
-            update={
-                "news_volume": _gdelt_feature_value(
-                    assessment=assessment,
-                    heuristic_news_volume=compute_news_volume(articles),
-                )
-            }
-        ),
-        sources=updated_sources,
+        generated_at=_utc_now(),
     )
-    persisted_snapshot = store.save_signal_snapshot(updated_snapshot)
     refreshed_source = next(
         source for source in persisted_snapshot.sources if source.name == "GDELT"
     )
@@ -637,6 +648,15 @@ def refresh_gdelt_signal() -> GdeltSignalRefreshResponse:
         snapshot=persisted_snapshot,
         assessment=assessment,
     )
+
+
+def refresh_gdelt_signal() -> GdeltSignalRefreshResponse:
+    settings = get_settings()
+    store = SignalStore(settings.database_url)
+    latest_snapshot = store.get_latest_signal_snapshot()
+    if latest_snapshot is None or not _snapshot_matches_current_contract(latest_snapshot):
+        latest_snapshot = refresh_latest_snapshot()
+    return _refresh_gdelt_signal_from_snapshot(store, latest_snapshot)
 
 
 def _rank_counts(items: list[str], limit: int = 5) -> list[GdeltCountBreakdown]:
@@ -653,30 +673,14 @@ def get_latest_gdelt_detail() -> GdeltDetailResponse:
     latest = store.get_latest_source_observation("GDELT")
 
     if latest is None:
-        observation = GdeltCollector(
-            source_url=settings.gdelt_source_url,
-            timeout_seconds=settings.gdelt_timeout_seconds,
-        ).fetch_observation()
-        store.save_source_observation(
-            source_name="GDELT",
-            collected_at=observation.collected_at,
-            status=observation.status,
-            payload=_gdelt_payload_for_storage(
-                observation.raw_payload,
-                observation.fallback_reason,
-            ),
-        )
-        collected_at = observation.collected_at
-        status = observation.status
-        articles = observation.articles
-        news_volume = observation.news_volume
-        fallback_reason = observation.fallback_reason
-    else:
-        collected_at = datetime.fromisoformat(latest["collected_at"])
-        status = latest["status"]
-        articles = parse_articles(latest["payload"])
-        news_volume = compute_news_volume(articles)
-        fallback_reason = _gdelt_fallback_reason_from_payload(latest["payload"])
+        latest_snapshot = store.get_latest_signal_snapshot() or _blank_snapshot()
+        _, latest = _ensure_latest_source_payload(store, latest_snapshot, "GDELT")
+
+    collected_at = datetime.fromisoformat(latest["collected_at"])
+    status = latest["status"]
+    articles = parse_articles(latest["payload"])
+    news_volume = compute_news_volume(articles)
+    fallback_reason = _gdelt_fallback_reason_from_payload(latest["payload"])
 
     recent_articles = filter_recent_articles(articles)
     alert_articles = [article for article in recent_articles if is_alert_article(article)]
@@ -689,7 +693,7 @@ def get_latest_gdelt_detail() -> GdeltDetailResponse:
         )
     else:
         freshness_score = 0.0
-    assessment = _gdelt_assessment_from_payload(latest["payload"]) if latest is not None else None
+    assessment = _gdelt_assessment_from_payload(latest["payload"])
     if assessment is None:
         assessment = _build_gdelt_manual_assessment(
             signal_article_count=len(signal_articles),

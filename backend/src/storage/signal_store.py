@@ -7,6 +7,7 @@ from src.models.schemas import (
     AlertRecord,
     FeatureSet,
     LatestSignalsResponse,
+    MarketOpportunitiesResponse,
     PizzaIndexSnapshotResponse,
     PizzaIndexTargetActivity,
     SignalSource,
@@ -70,6 +71,21 @@ class SignalStore:
                     edge REAL NOT NULL,
                     signal TEXT NOT NULL,
                     status TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS market_opportunity_snapshots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    generated_at TEXT NOT NULL,
+                    source_json TEXT NOT NULL,
+                    upstream TEXT NOT NULL,
+                    opportunities_json TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS alert_evaluation_runs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    evaluated_at TEXT NOT NULL,
+                    created_count INTEGER NOT NULL,
+                    alerts_json TEXT NOT NULL
                 );
 
                 CREATE TABLE IF NOT EXISTS provider_daily_usage (
@@ -237,6 +253,56 @@ class SignalStore:
                 )
                 persisted.append(alert.model_copy(update={"id": str(cursor.lastrowid)}))
         return persisted
+
+    def save_market_opportunities(
+        self, snapshot: MarketOpportunitiesResponse
+    ) -> MarketOpportunitiesResponse:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO market_opportunity_snapshots (
+                    generated_at,
+                    source_json,
+                    upstream,
+                    opportunities_json
+                ) VALUES (?, ?, ?, ?)
+                """,
+                (
+                    snapshot.generated_at.isoformat(),
+                    json.dumps(snapshot.source.model_dump(mode="json")),
+                    snapshot.upstream,
+                    json.dumps(
+                        [
+                            opportunity.model_dump(mode="json")
+                            for opportunity in snapshot.opportunities
+                        ]
+                    ),
+                ),
+            )
+        return snapshot
+
+    def save_alert_evaluation_run(
+        self,
+        *,
+        evaluated_at: datetime,
+        created_count: int,
+        alerts: list[AlertRecord],
+    ) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO alert_evaluation_runs (
+                    evaluated_at,
+                    created_count,
+                    alerts_json
+                ) VALUES (?, ?, ?)
+                """,
+                (
+                    evaluated_at.isoformat(),
+                    created_count,
+                    json.dumps([alert.model_dump(mode="json") for alert in alerts]),
+                ),
+            )
 
     def list_alerts(self, limit: int = 100) -> list[AlertRecord]:
         with self._connect() as connection:
@@ -462,3 +528,5 @@ class SignalStore:
             return None
 
         return PizzaIndexSnapshotResponse(**json.loads(row["payload_json"]))
+
+

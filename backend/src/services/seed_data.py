@@ -25,11 +25,12 @@ from src.services.pizza_index_pipeline import (
 from src.services.signal_pipeline import (
     get_or_create_latest_snapshot,
     get_latest_gdelt_detail as load_latest_gdelt_detail,
-    refresh_latest_snapshot,
+    get_latest_opensky_anomalies as load_latest_opensky_anomalies,
     refresh_gdelt_signal as load_refreshed_gdelt_signal,
+    refresh_latest_snapshot,
     refresh_opensky_signal as load_refreshed_opensky_signal,
     refresh_signal_source as load_refreshed_signal_source,
-    get_latest_opensky_anomalies as load_latest_opensky_anomalies,
+    refresh_source_detail as load_source_detail_refresh,
 )
 
 
@@ -43,6 +44,10 @@ def refresh_latest_signals():
 
 def refresh_signal_source(source_name: str) -> SignalSourceRefreshResponse:
     return load_refreshed_signal_source(source_name)
+
+
+def refresh_source_detail(source_name: str) -> SignalSourceRefreshResponse:
+    return load_source_detail_refresh(source_name)
 
 
 def get_latest_opensky_anomalies() -> OpenSkyAnomaliesResponse:

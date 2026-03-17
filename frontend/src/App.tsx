@@ -12,8 +12,11 @@ import {
   getMarketOpportunities,
   getOpenSkyAnomalies,
   refreshGdeltSignal,
+  refreshGdeltSource,
   refreshPizzaIndex,
   refreshOpenSkySignal,
+  refreshOpenSkySource,
+  refreshNotamSource,
   refreshSignalSource,
   refreshSignals,
   scoreRisk,
@@ -229,7 +232,6 @@ export default function App() {
   const [refreshingSourceName, setRefreshingSourceName] = useState<string | null>(null);
   const [isRefreshingOpenSkySignal, setIsRefreshingOpenSkySignal] = useState(false);
   const [isRefreshingGdeltSignal, setIsRefreshingGdeltSignal] = useState(false);
-  const [isRefreshingPizzaIndex, setIsRefreshingPizzaIndex] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [featureLogicSourceId, setFeatureLogicSourceId] = useState<'gdelt' | 'notam-feed' | 'opensky-network' | null>(null);
   const [selectedOpenSkyAnomalyId, setSelectedOpenSkyAnomalyId] = useState<string | null>(null);
@@ -384,9 +386,13 @@ export default function App() {
     setActionMessage(null);
 
     try {
-      const snapshot = await refreshSignals();
-      await hydrateDashboard(snapshot);
-      setActionMessage('Signals refreshed from the latest collector pass.');
+      const [snapshot, latestPizzaIndex] = await Promise.all([
+        refreshSignals(),
+        getLatestPizzaIndex().catch(() => null),
+      ]);
+      setPizzaIndex(latestPizzaIndex);
+      await hydrateDashboard(snapshot, latestPizzaIndex);
+      setActionMessage('Signals refreshed across OpenSky Network, NOTAM Feed, GDELT, and Pizza Index Activity.');
     } catch (refreshError) {
       setError(refreshError instanceof Error ? refreshError.message : 'Failed to refresh signals.');
     } finally {
@@ -424,32 +430,32 @@ export default function App() {
     }
   }, []);
 
-  const handleRefreshSource = useCallback(async (sourceName: string) => {
+  const handleDashboardSourceRefresh = useCallback(async (sourceName: string) => {
     setRefreshingSourceName(sourceName);
     setError(null);
     setActionMessage(null);
 
     try {
       const refreshed = await refreshSignalSource(sourceName);
-      let refreshedOpenSkyAnomalies: OpenSkyAnomaliesResponse | null = null;
-      let refreshedGdeltDetail: GdeltDetailResponse | null = null;
+      let refreshedSnapshot = refreshed.snapshot;
+
       if (sourceName === 'OpenSky Network') {
-        refreshedOpenSkyAnomalies = await getOpenSkyAnomalies();
+        const latestAnomalies = await getOpenSkyAnomalies();
+        applyOpenSkyAnomalies(latestAnomalies);
       } else if (sourceName === 'GDELT') {
-        refreshedGdeltDetail = await getGdeltDetail();
+        const latestDetail = await getGdeltDetail();
+        setGdeltDetail(latestDetail);
+      } else if (sourceName === PIZZA_INDEX_SOURCE_NAME) {
+        const latestPizzaIndex = await getLatestPizzaIndex();
+        setPizzaIndex(latestPizzaIndex);
+        refreshedSnapshot = mergePizzaIndexIntoSnapshot(refreshed.snapshot, latestPizzaIndex);
       }
 
-      await updateDashboardSnapshotRisk(refreshed.snapshot);
-      if (refreshedOpenSkyAnomalies) {
-        applyOpenSkyAnomalies(refreshedOpenSkyAnomalies);
-      }
-      if (refreshedGdeltDetail) {
-        setGdeltDetail(refreshedGdeltDetail);
-      }
+      await updateDashboardSnapshotRisk(refreshedSnapshot);
       setActionMessage(
         refreshed.source.status === 'degraded'
-          ? `${sourceName} collector check completed, but the live source was unavailable. Fallback data is currently loaded.`
-          : `${sourceName} refreshed from the latest collector check.`,
+          ? `${sourceName} source refreshed with fallback data, and its signal snapshot was recomputed.`
+          : `${sourceName} source and signal refreshed from the latest collector check.`,
       );
     } catch (refreshError) {
       setError(refreshError instanceof Error ? refreshError.message : `Failed to refresh ${sourceName}.`);
@@ -457,6 +463,49 @@ export default function App() {
       setRefreshingSourceName(null);
     }
   }, [applyOpenSkyAnomalies, updateDashboardSnapshotRisk]);
+
+  const handleSourceDetailRefresh = useCallback(async (sourceName: string) => {
+    setRefreshingSourceName(sourceName);
+    setError(null);
+    setGdeltError(null);
+    setOpenSkyError(null);
+    setPizzaError(null);
+    setActionMessage(null);
+
+    try {
+      if (sourceName === 'OpenSky Network') {
+        const refreshed = await refreshOpenSkySource();
+        await updateDashboardSnapshotRisk(refreshed.snapshot);
+        const latestAnomalies = await getOpenSkyAnomalies();
+        applyOpenSkyAnomalies(latestAnomalies);
+      } else if (sourceName === 'GDELT') {
+        const refreshed = await refreshGdeltSource();
+        await updateDashboardSnapshotRisk(refreshed.snapshot);
+        const latestDetail = await getGdeltDetail();
+        setGdeltDetail(latestDetail);
+      } else if (sourceName === 'NOTAM Feed') {
+        const refreshed = await refreshNotamSource();
+        await updateDashboardSnapshotRisk(refreshed.snapshot);
+      } else if (sourceName === PIZZA_INDEX_SOURCE_NAME) {
+        const refreshed = await refreshPizzaIndex();
+        setPizzaIndex(refreshed);
+        if (dashboard.signals) {
+          const mergedSnapshot = mergePizzaIndexIntoSnapshot(dashboard.signals, refreshed);
+          await updateDashboardSnapshotRisk(mergedSnapshot);
+        }
+      }
+
+      setActionMessage(
+        sourceName === PIZZA_INDEX_SOURCE_NAME
+          ? 'Pizza Index Activity source refreshed from the latest monitored targets.'
+          : `${sourceName} source refreshed from the latest collector check.`,
+      );
+    } catch (refreshError) {
+      setError(refreshError instanceof Error ? refreshError.message : `Failed to refresh ${sourceName}.`);
+    } finally {
+      setRefreshingSourceName(null);
+    }
+  }, [applyOpenSkyAnomalies, dashboard.signals, updateDashboardSnapshotRisk]);
 
   const handleRefreshOpenSkySignal = useCallback(async () => {
     setIsRefreshingOpenSkySignal(true);
@@ -469,7 +518,7 @@ export default function App() {
       await updateDashboardSnapshotRisk(refreshed.snapshot);
       const latestAnomalies = await getOpenSkyAnomalies();
       applyOpenSkyAnomalies(latestAnomalies);
-      setActionMessage('OpenSky Network signal refreshed from the latest AI assessment.');
+      setActionMessage('OpenSky Network signal refreshed from the latest stored source snapshot.');
     } catch (refreshError) {
       setError(refreshError instanceof Error ? refreshError.message : 'Failed to refresh OpenSky Network signal.');
     } finally {
@@ -491,33 +540,13 @@ export default function App() {
         ...latestDetail,
         assessment: latestDetail.assessment ?? refreshed.assessment,
       });
-      setActionMessage('GDELT signal refreshed from the latest AI assessment.');
+      setActionMessage('GDELT signal refreshed from the latest stored source snapshot.');
     } catch (refreshError) {
       setError(refreshError instanceof Error ? refreshError.message : 'Failed to refresh GDELT signal.');
     } finally {
       setIsRefreshingGdeltSignal(false);
     }
   }, [updateDashboardSnapshotRisk]);
-
-  const handleRefreshPizzaIndex = useCallback(async () => {
-    setIsRefreshingPizzaIndex(true);
-    setPizzaError(null);
-    setActionMessage(null);
-
-    try {
-      const refreshed = await refreshPizzaIndex();
-      setPizzaIndex(refreshed);
-      if (dashboard.signals) {
-        const mergedSnapshot = mergePizzaIndexIntoSnapshot(dashboard.signals, refreshed);
-        await updateDashboardSnapshotRisk(mergedSnapshot);
-      }
-      setActionMessage('Pizza Index Activity refreshed from the latest monitored targets.');
-    } catch (refreshError) {
-      setPizzaError(refreshError instanceof Error ? refreshError.message : 'Failed to refresh Pizza Index Activity.');
-    } finally {
-      setIsRefreshingPizzaIndex(false);
-    }
-  }, [dashboard.signals, updateDashboardSnapshotRisk]);
 
   const topOpportunity = useMemo(() => {
     return dashboard.opportunities.reduce<MarketOpportunity | null>((best, current) => {
@@ -549,15 +578,18 @@ export default function App() {
       return [];
     }
 
+    const signals = dashboard.signals;
+    const risk = dashboard.risk;
+
     return dashboardSourceDefinitions.map((source) => ({
       featureKey: source.featureKey ?? null,
       id: source.id,
       label: source.name,
       summary: source.summary,
-      value: source.featureKey ? dashboard.signals.features[source.featureKey] : null,
+      value: source.featureKey ? signals.features[source.featureKey] : null,
       weight:
         source.featureKey
-          ? dashboard.risk.breakdown.find((item) => item.feature === source.featureKey)?.weight ?? null
+          ? risk.breakdown.find((item) => item.feature === source.featureKey)?.weight ?? null
           : null,
     }));
   }, [dashboard.risk, dashboard.signals, dashboardSourceDefinitions]);
@@ -879,7 +911,7 @@ export default function App() {
                         <div className="source-card__actions">
                           <button
                             className="button button--inline button--secondary"
-                            onClick={() => void handleRefreshSource(source.name)}
+                            onClick={() => void handleDashboardSourceRefresh(source.name)}
                             disabled={isLoading || refreshingSourceName === source.name || source.mode === 'static_baseline'}
                             aria-label={`Refresh source ${source.name}`}
                           >
@@ -1004,8 +1036,12 @@ export default function App() {
           <button className="button button--secondary" onClick={() => navigate({ page: 'dashboard' })}>
             Back to Dashboard
           </button>
-          <button className="button" onClick={() => void handleRefreshPizzaIndex()} disabled={isRefreshingPizzaIndex}>
-            {isRefreshingPizzaIndex ? 'Refreshing...' : 'Refresh Source'}
+          <button
+            className="button"
+            onClick={() => void handleSourceDetailRefresh(sourceDefinition.name)}
+            disabled={refreshingSourceName === sourceDefinition.name}
+          >
+            {refreshingSourceName === sourceDefinition.name ? 'Refreshing...' : 'Refresh Source'}
           </button>
         </div>
       </header>
@@ -1111,7 +1147,7 @@ export default function App() {
             </button>
             <button
               className="button"
-              onClick={() => void handleRefreshSource(sourceDefinition.name)}
+              onClick={() => void handleSourceDetailRefresh(sourceDefinition.name)}
               disabled={refreshingSourceName === sourceDefinition.name || isRefreshingGdeltSignal}
             >
               {refreshingSourceName === sourceDefinition.name ? 'Refreshing...' : 'Refresh Source'}
@@ -1365,7 +1401,7 @@ export default function App() {
             </button>
             <button
               className="button"
-              onClick={() => void handleRefreshSource(sourceDefinition.name)}
+              onClick={() => void handleSourceDetailRefresh(sourceDefinition.name)}
               disabled={refreshingSourceName === sourceDefinition.name}
             >
               {refreshingSourceName === sourceDefinition.name ? 'Refreshing...' : 'Refresh Source'}
@@ -1492,7 +1528,7 @@ export default function App() {
             </button>
             <button
               className="button"
-              onClick={() => void handleRefreshSource(sourceDefinition.name)}
+              onClick={() => void handleSourceDetailRefresh(sourceDefinition.name)}
               disabled={refreshingSourceName === sourceDefinition.name || isRefreshingOpenSkySignal}
             >
               {refreshingSourceName === sourceDefinition.name ? 'Refreshing...' : 'Refresh Source'}

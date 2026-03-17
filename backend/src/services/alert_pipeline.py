@@ -42,8 +42,14 @@ def evaluate_alerts() -> AlertEvaluationResponse:
     ]
 
     persisted_alerts = store.save_alerts(pending_alerts) if pending_alerts else []
+    store.save_alert_evaluation_run(
+        evaluated_at=created_at,
+        created_count=len(persisted_alerts),
+        alerts=persisted_alerts,
+    )
     return AlertEvaluationResponse(
         evaluated_at=created_at,
         created_count=len(persisted_alerts),
         alerts=persisted_alerts,
     )
+

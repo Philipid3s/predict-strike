@@ -57,6 +57,24 @@ export function refreshSignalSource(sourceName: string): Promise<SignalSourceRef
   });
 }
 
+export function refreshOpenSkySource(): Promise<SignalSourceRefreshResponse> {
+  return request<SignalSourceRefreshResponse>('/api/v1/signals/sources/opensky-network/refresh-source', {
+    method: 'POST',
+  });
+}
+
+export function refreshNotamSource(): Promise<SignalSourceRefreshResponse> {
+  return request<SignalSourceRefreshResponse>('/api/v1/signals/sources/notam-feed/refresh-source', {
+    method: 'POST',
+  });
+}
+
+export function refreshGdeltSource(): Promise<SignalSourceRefreshResponse> {
+  return request<SignalSourceRefreshResponse>('/api/v1/signals/sources/gdelt/refresh-source', {
+    method: 'POST',
+  });
+}
+
 export function getLatestPizzaIndex(): Promise<PizzaIndexSnapshotResponse> {
   return request<PizzaIndexSnapshotResponse>('/api/v1/pizza-index/latest');
 }

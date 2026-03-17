@@ -12,6 +12,10 @@ info:
     supports a live PizzINT dashboard primary path with quota-controlled
     SerpApi fallback, and market opportunities use Polymarket Gamma with a
     `pizzint.watch` market-feed fallback when Gamma is inaccessible.
+    Planned operator flows persist source loads, signal snapshots, Polymarket
+    loads, opportunity snapshots, and alert-evaluation outputs in SQLite as
+    historical records, with "latest" endpoints reading from the newest
+    persisted snapshot.
 
 servers:
   - url: http://localhost:8000
@@ -55,6 +59,7 @@ paths:
     get:
       tags: [signals]
       summary: Get the latest normalized signal snapshot
+      description: Returns the latest persisted multi-source signal snapshot from SQLite for the current four-source dashboard scope.
       operationId: getLatestSignals
       responses:
         "200":
@@ -88,23 +93,24 @@ paths:
                         status: degraded
                         mode: fallback
                         last_checked_at: "2026-03-07T08:50:00Z"
-                      - name: Satellite Monitoring
-                        status: planned
-                        mode: static_baseline
-                        last_checked_at: null
-                      - name: Social OSINT
-                        status: planned
-                        mode: static_baseline
-                        last_checked_at: null
                       - name: Pizza Index Activity
-                        status: planned
-                        mode: static_baseline
-                        last_checked_at: null
+                        status: active
+                        mode: live
+                        last_checked_at: "2026-03-07T08:58:00Z"
 
   /api/v1/signals/refresh:
     post:
       tags: [signals]
       summary: Force a fresh collection pass and persist a new signal snapshot
+      description: |
+        Dashboard-level orchestration action for the main `Refresh Signals`
+        control.
+        For each supported dashboard source in the current scope
+        (`OpenSky Network`, `NOTAM Feed`, `GDELT`, and `Pizza Index Activity`),
+        the planned behavior is:
+        1. refresh source collection and persist a new source-load record
+        2. recompute that source's derived signal from the refreshed data
+        3. persist the consolidated latest signal snapshot in SQLite
       operationId: refreshSignals
       responses:
         "200":
@@ -138,27 +144,24 @@ paths:
                         status: degraded
                         mode: fallback
                         last_checked_at: "2026-03-07T09:05:00Z"
-                      - name: Satellite Monitoring
-                        status: planned
-                        mode: static_baseline
-                        last_checked_at: null
-                      - name: Social OSINT
-                        status: planned
-                        mode: static_baseline
-                        last_checked_at: null
                       - name: Pizza Index Activity
-                        status: planned
-                        mode: static_baseline
-                        last_checked_at: null
+                        status: active
+                        mode: live
+                        last_checked_at: "2026-03-07T09:05:00Z"
 
   /api/v1/signals/refresh-source:
     post:
       tags: [signals]
       summary: Refresh a single collector-backed signal source
       description: |
-        Forces a fresh collection pass for one source entry in the latest
-        signal snapshot. Only collector-backed sources currently support this
-        endpoint. Static baseline entries return a validation error.
+        Dashboard-level per-source orchestration action for the pre-source
+        status panel.
+        The planned behavior is to refresh one selected source only, then
+        recompute that source's derived signal, and finally persist an updated
+        consolidated signal snapshot in SQLite.
+        This endpoint is intentionally different from source-detail page
+        `Refresh source` actions, which perform collection only without
+        implicitly recomputing the signal.
       operationId: refreshSignalSource
       requestBody:
         required: true
@@ -208,18 +211,10 @@ paths:
                           status: degraded
                           mode: fallback
                           last_checked_at: "2026-03-07T09:05:00Z"
-                        - name: Satellite Monitoring
-                          status: planned
-                          mode: static_baseline
-                          last_checked_at: null
-                        - name: Social OSINT
-                          status: planned
-                          mode: static_baseline
-                          last_checked_at: null
                         - name: Pizza Index Activity
-                          status: planned
-                          mode: static_baseline
-                          last_checked_at: null
+                          status: active
+                          mode: live
+                          last_checked_at: "2026-03-07T09:05:00Z"
         "400":
           description: Source does not support individual refresh
           content:
@@ -292,10 +287,12 @@ paths:
       tags: [signals]
       summary: Refresh the OpenSky signal assessment and snapshot
       description: |
-        Re-runs the OpenSky anomaly assessment workflow using the current
-        anomaly list, calls the AI strike assessment service, and persists the
-        updated snapshot feature value and inferred hotspot region derived from
-        the returned assessment.
+        Source-detail action for the OpenSky page.
+        Re-runs the OpenSky anomaly assessment workflow using the latest stored
+        OpenSky source data and current anomaly list, calls the AI strike
+        assessment service, and persists a new derived snapshot feature value
+        plus inferred hotspot region.
+        It does not perform a new upstream OpenSky collection pass.
       operationId: refreshOpenSkySignal
       responses:
         "200":
@@ -334,6 +331,10 @@ paths:
                         - name: GDELT
                           status: degraded
                           mode: fallback
+                          last_checked_at: "2026-03-07T09:05:00Z"
+                        - name: Pizza Index Activity
+                          status: active
+                          mode: live
                           last_checked_at: "2026-03-07T09:05:00Z"
                     assessment:
                       status: ready
@@ -435,11 +436,13 @@ paths:
       tags: [signals]
       summary: Refresh the GDELT signal assessment and snapshot
       description: |
-        Re-runs the GDELT article collection workflow using the current article
-        set, applies freshness-aware US/NATO action-indicative filtering,
-        submits the representative article subset to the AI assessment service,
-        and persists the updated `news_volume` feature value plus any inferred
-        target region or country returned by the assessment.
+        Source-detail action for the GDELT page.
+        Re-runs the GDELT signal assessment using the latest stored GDELT
+        article set, applies freshness-aware US/NATO action-indicative
+        filtering, submits the representative article subset to the AI
+        assessment service, and persists a new derived `news_volume` snapshot
+        plus any inferred target region or country.
+        It does not perform a new upstream GDELT collection pass.
       operationId: refreshGdeltSignal
       responses:
         "200":
@@ -479,6 +482,10 @@ paths:
                           status: active
                           mode: live
                           last_checked_at: "2026-03-07T09:08:00Z"
+                        - name: Pizza Index Activity
+                          status: active
+                          mode: live
+                          last_checked_at: "2026-03-07T09:05:00Z"
                     assessment:
                       status: ready
                       prompt_version: gdelt-strike-v1
@@ -605,7 +612,9 @@ paths:
     get:
       tags: [pizza-index]
       summary: Get the latest aggregate Pizza Index snapshot
-      description: Returns the cached aggregate Pizza Index snapshot, derived from current per-target activity observations.
+      description: |
+        Returns the latest persisted aggregate Pizza Index snapshot, derived
+        from the newest per-target activity observations stored in SQLite.
       operationId: getLatestPizzaIndex
       responses:
         "200":
@@ -642,7 +651,12 @@ paths:
     post:
       tags: [pizza-index]
       summary: Force a refresh of the aggregate Pizza Index snapshot
-      description: Forces a fresh collection pass across all active Pizza Index targets and persists the resulting snapshot.
+      description: |
+        Refreshes Pizza Index source collection across all active targets and
+        persists the resulting aggregate snapshot in SQLite.
+        In planned dashboard orchestration, the main `Refresh Signals` action
+        uses this source refresh as the Pizza Index collection step before the
+        broader signal snapshot is recomputed and stored.
       operationId: refreshPizzaIndex
       responses:
         "200":
@@ -746,6 +760,9 @@ paths:
         reachable. If Gamma is inaccessible from the runtime, the backend falls
         back to the `pizzint.watch` breaking-markets API before degrading to
         bootstrap sample data.
+        Each load is expected to be persisted in SQLite as a historical
+        Polymarket market snapshot, and the returned opportunity set is the
+        latest persisted model-versus-market comparison output.
       operationId: getMarketOpportunities
       responses:
         "200":
@@ -809,6 +826,13 @@ paths:
     post:
       tags: [alerts]
       summary: Evaluate current opportunities and persist analyst alerts
+      description: |
+        Dashboard-level action for the main `Evaluate Alerts` control.
+        The planned behavior is to reload the latest relevant Polymarket market
+        opportunities, use the current model percentage from the latest signal
+        state, re-evaluate edge for each opportunity, persist both the market
+        load and evaluation output in SQLite, and then emit or update
+        analyst-facing alert records.
       operationId: evaluateAlerts
       responses:
         "200":
@@ -1367,6 +1391,7 @@ components:
     MarketOpportunity:
       type: object
       additionalProperties: false
+      description: One persisted model-versus-market comparison row from a historical opportunity snapshot.
       required:
         - market_id
         - question
@@ -1398,6 +1423,7 @@ components:
     MarketOpportunitiesResponse:
       type: object
       additionalProperties: false
+      description: Latest persisted market-opportunity snapshot derived from a historical Polymarket load.
       required: [generated_at, source, upstream, opportunities]
       properties:
         generated_at:
@@ -1646,6 +1672,7 @@ components:
     AlertHistoryResponse:
       type: object
       additionalProperties: false
+      description: Persisted analyst alert records derived from prior evaluation runs.
       required: [generated_at, alerts]
       properties:
         generated_at:
@@ -1659,6 +1686,7 @@ components:
     AlertEvaluationResponse:
       type: object
       additionalProperties: false
+      description: Persisted output of a single alert-evaluation run over the latest opportunity snapshot.
       required: [evaluated_at, created_count, alerts]
       properties:
         evaluated_at:

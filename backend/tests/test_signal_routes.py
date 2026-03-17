@@ -52,8 +52,8 @@ class SignalRouteTests(unittest.TestCase):
             else:
                 os.environ["DATABASE_URL"] = original_database_url
 
-        self.assertEqual(observation_count, 6)
-        self.assertEqual(snapshot_count, 2)
+        self.assertEqual(observation_count, 12)
+        self.assertEqual(snapshot_count, 12)
 
     def test_refresh_source_endpoint_updates_single_source_and_persists(self) -> None:
         runtime_dir = Path(__file__).resolve().parent / ".runtime"
@@ -69,8 +69,7 @@ class SignalRouteTests(unittest.TestCase):
 
             latest_response = client.get("/api/v1/signals/latest")
             refresh_response = client.post(
-                "/api/v1/signals/refresh-source",
-                json={"source_name": "OpenSky Network"},
+                "/api/v1/signals/sources/opensky-network/refresh-source"
             )
 
             self.assertEqual(latest_response.status_code, 200)
@@ -100,8 +99,8 @@ class SignalRouteTests(unittest.TestCase):
             else:
                 os.environ["DATABASE_URL"] = original_database_url
 
-        self.assertEqual(observation_count, 4)
-        self.assertEqual(snapshot_count, 2)
+        self.assertEqual(observation_count, 7)
+        self.assertEqual(snapshot_count, 7)
 
     def test_refresh_source_endpoint_does_not_change_opensky_signal_feature(self) -> None:
         runtime_dir = Path(__file__).resolve().parent / ".runtime"
@@ -118,8 +117,7 @@ class SignalRouteTests(unittest.TestCase):
             latest_response = client.get("/api/v1/signals/latest")
             latest_payload = latest_response.json()
             refresh_response = client.post(
-                "/api/v1/signals/refresh-source",
-                json={"source_name": "OpenSky Network"},
+                "/api/v1/signals/sources/opensky-network/refresh-source"
             )
         finally:
             if original_database_url is None:
@@ -134,7 +132,7 @@ class SignalRouteTests(unittest.TestCase):
             latest_payload["features"]["flight_anomaly"],
         )
 
-    def test_refresh_source_endpoint_rejects_static_baseline_source(self) -> None:
+    def test_refresh_source_endpoint_supports_pizza_index_dashboard_refresh(self) -> None:
         client = TestClient(app)
 
         response = client.post(
@@ -142,8 +140,10 @@ class SignalRouteTests(unittest.TestCase):
             json={"source_name": "Pizza Index Activity"},
         )
 
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("does not support individual refresh", response.json()["detail"])
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["source"]["name"], "Pizza Index Activity")
+        self.assertIn("pizza_index", payload["snapshot"]["features"])
 
     def test_opensky_anomalies_endpoint_returns_suspicious_flights_without_triggering_ai(self) -> None:
         runtime_dir = Path(__file__).resolve().parent / ".runtime"
@@ -196,10 +196,7 @@ class SignalRouteTests(unittest.TestCase):
         os.environ["DATABASE_URL"] = f"sqlite:///{database_path.as_posix()}"
         try:
             client = TestClient(app)
-            client.post(
-                "/api/v1/signals/refresh-source",
-                json={"source_name": "GDELT"},
-            )
+            client.post("/api/v1/signals/sources/gdelt/refresh-source")
             with patch(
                 "src.services.signal_pipeline.GdeltStrikeAssessmentService.assess_articles",
                 side_effect=AssertionError("detail endpoint must not call Gemini"),
@@ -345,8 +342,7 @@ class SignalRouteTests(unittest.TestCase):
             latest_response = client.get("/api/v1/signals/latest")
             latest_payload = latest_response.json()
             refresh_response = client.post(
-                "/api/v1/signals/refresh-source",
-                json={"source_name": "GDELT"},
+                "/api/v1/signals/sources/gdelt/refresh-source"
             )
         finally:
             if original_database_url is None:
@@ -439,3 +435,5 @@ class SignalRouteTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+

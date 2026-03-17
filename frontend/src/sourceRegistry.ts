@@ -42,7 +42,7 @@ export const SOURCE_DEFINITIONS: SourceDefinition[] = [
     summary: 'Restaurant-activity monitoring around monitored Pentagon-area pizza targets.',
     detail: 'Aggregates live and fallback restaurant activity signals into a Pizza Index score with per-target provider provenance.',
     featureKey: 'pizza_index',
-    supportsDashboardRefresh: false,
+    supportsDashboardRefresh: true,
     hasDedicatedDetailData: true,
   },
 ];
@@ -54,3 +54,4 @@ export const SOURCE_BY_ID = Object.fromEntries(
 export const SOURCE_ID_BY_NAME = Object.fromEntries(
   SOURCE_DEFINITIONS.map((source) => [source.name, source.id]),
 ) as Record<string, string>;
+

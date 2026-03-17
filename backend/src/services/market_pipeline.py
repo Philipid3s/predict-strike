@@ -55,7 +55,7 @@ def get_market_opportunities() -> MarketOpportunitiesResponse:
         )
 
     opportunities.sort(key=lambda item: abs(item.edge), reverse=True)
-    return MarketOpportunitiesResponse(
+    response = MarketOpportunitiesResponse(
         generated_at=observation.collected_at,
         source=SignalSource(
             name="Polymarket",
@@ -66,3 +66,5 @@ def get_market_opportunities() -> MarketOpportunitiesResponse:
         upstream=observation.upstream,
         opportunities=opportunities[:10],
     )
+    return store.save_market_opportunities(response)
+

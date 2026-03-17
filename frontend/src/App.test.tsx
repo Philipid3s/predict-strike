@@ -241,32 +241,6 @@ const openSkyAnomaliesPayload = {
   ],
 } as const;
 
-const refreshedSourcePayload = {
-  source: {
-    name: 'OpenSky Network',
-    status: 'active',
-    mode: 'live',
-    last_checked_at: '2026-03-07T09:06:00Z',
-  },
-  snapshot: {
-    ...snapshotPayload,
-    generated_at: '2026-03-07T09:06:00Z',
-    features: {
-      ...snapshotPayload.features,
-      flight_anomaly: 0.8,
-    },
-    sources: [
-      {
-        name: 'OpenSky Network',
-        status: 'active',
-        mode: 'live',
-        last_checked_at: '2026-03-07T09:06:00Z',
-      },
-      snapshotPayload.sources[1],
-    ],
-  },
-} as const;
-
 const refreshedOpenSkySignalPayload = {
   source: {
     name: 'OpenSky Network',
@@ -306,6 +280,121 @@ const refreshedOpenSkyAnomaliesPayload = {
   generated_at: '2026-03-07T09:07:30Z',
   flight_anomaly: 0.91,
   assessment: refreshedOpenSkySignalPayload.assessment,
+} as const;
+
+const refreshedDashboardOpenSkyPayload = {
+  source: refreshedOpenSkySignalPayload.source,
+  snapshot: refreshedOpenSkySignalPayload.snapshot,
+} as const;
+
+const refreshedOpenSkySourceOnlyPayload = {
+  source: {
+    name: 'OpenSky Network',
+    status: 'active',
+    mode: 'live',
+    last_checked_at: '2026-03-07T09:06:00Z',
+  },
+  snapshot: {
+    ...snapshotPayload,
+    generated_at: '2026-03-07T09:06:00Z',
+    features: {
+      ...snapshotPayload.features,
+    },
+    sources: [
+      {
+        name: 'OpenSky Network',
+        status: 'active',
+        mode: 'live',
+        last_checked_at: '2026-03-07T09:06:00Z',
+      },
+      ...snapshotPayload.sources.slice(1),
+    ],
+  },
+} as const;
+
+const refreshedGdeltSourceOnlyPayload = {
+  source: {
+    name: 'GDELT',
+    status: 'active',
+    mode: 'live',
+    last_checked_at: '2026-03-07T09:08:00Z',
+  },
+  snapshot: {
+    ...snapshotPayload,
+    generated_at: '2026-03-07T09:08:00Z',
+    features: {
+      ...snapshotPayload.features,
+    },
+    sources: [
+      snapshotPayload.sources[0],
+      snapshotPayload.sources[1],
+      {
+        name: 'GDELT',
+        status: 'active',
+        mode: 'live',
+        last_checked_at: '2026-03-07T09:08:00Z',
+      },
+      snapshotPayload.sources[3],
+    ],
+  },
+} as const;
+
+const refreshedNotamSourceOnlyPayload = {
+  source: {
+    name: 'NOTAM Feed',
+    status: 'active',
+    mode: 'live',
+    last_checked_at: '2026-03-07T09:05:30Z',
+  },
+  snapshot: {
+    ...snapshotPayload,
+    generated_at: '2026-03-07T09:05:30Z',
+    features: {
+      ...snapshotPayload.features,
+      notam_spike: 0.49,
+    },
+    sources: [
+      snapshotPayload.sources[0],
+      {
+        name: 'NOTAM Feed',
+        status: 'active',
+        mode: 'live',
+        last_checked_at: '2026-03-07T09:05:30Z',
+      },
+      snapshotPayload.sources[2],
+      snapshotPayload.sources[3],
+    ],
+  },
+} as const;
+
+const refreshedPizzaIndexPayload = {
+  ...pizzaIndexPayload,
+  generated_at: '2026-03-07T09:09:00Z',
+  pizza_index: 0.52,
+  quality_summary: {
+    full_count: 5,
+    partial_count: 0,
+    unavailable_count: 0,
+  },
+} as const;
+
+const refreshedSignalsPayload = {
+  ...refreshedOpenSkySignalPayload.snapshot,
+  generated_at: '2026-03-07T09:09:00Z',
+  features: {
+    ...refreshedOpenSkySignalPayload.snapshot.features,
+    pizza_index: 0.52,
+  },
+} as const;
+
+const refreshedDashboardPizzaPayload = {
+  source: {
+    name: 'Pizza Index Activity',
+    status: 'active',
+    mode: 'live',
+    last_checked_at: '2026-03-07T09:09:00Z',
+  },
+  snapshot: refreshedSignalsPayload,
 } as const;
 
 const evaluatedAlertsPayload = {
@@ -360,11 +449,13 @@ describe('App', () => {
   let riskScoreCallCount: number;
   let currentOpenSkyAnomaliesPayload: typeof openSkyAnomaliesPayload | typeof refreshedOpenSkyAnomaliesPayload;
   let currentGdeltDetailPayload: typeof gdeltDetailPayload | typeof refreshedGdeltDetailPayload;
+  let currentPizzaIndexPayload: typeof pizzaIndexPayload | typeof refreshedPizzaIndexPayload;
 
   beforeEach(() => {
     riskScoreCallCount = 0;
     currentOpenSkyAnomaliesPayload = openSkyAnomaliesPayload;
     currentGdeltDetailPayload = gdeltDetailPayload;
+    currentPizzaIndexPayload = pizzaIndexPayload;
     fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
         const method = init?.method ?? 'GET';
@@ -385,8 +476,33 @@ describe('App', () => {
           );
         }
 
+        if (url.endsWith('/api/v1/signals/refresh') && method === 'POST') {
+          currentOpenSkyAnomaliesPayload = refreshedOpenSkyAnomaliesPayload;
+          currentGdeltDetailPayload = refreshedGdeltDetailPayload;
+          currentPizzaIndexPayload = refreshedPizzaIndexPayload;
+          return mockResponse(refreshedSignalsPayload);
+        }
+
         if (url.endsWith('/api/v1/signals/refresh-source') && method === 'POST') {
-          return mockResponse(refreshedSourcePayload);
+          const body = init?.body ? JSON.parse(String(init.body)) : {};
+          if (body.source_name === 'Pizza Index Activity') {
+            currentPizzaIndexPayload = refreshedPizzaIndexPayload;
+            return mockResponse(refreshedDashboardPizzaPayload);
+          }
+          currentOpenSkyAnomaliesPayload = refreshedOpenSkyAnomaliesPayload;
+          return mockResponse(refreshedDashboardOpenSkyPayload);
+        }
+
+        if (url.endsWith('/api/v1/signals/sources/opensky-network/refresh-source') && method === 'POST') {
+          return mockResponse(refreshedOpenSkySourceOnlyPayload);
+        }
+
+        if (url.endsWith('/api/v1/signals/sources/notam-feed/refresh-source') && method === 'POST') {
+          return mockResponse(refreshedNotamSourceOnlyPayload);
+        }
+
+        if (url.endsWith('/api/v1/signals/sources/gdelt/refresh-source') && method === 'POST') {
+          return mockResponse(refreshedGdeltSourceOnlyPayload);
         }
 
         if (url.endsWith('/api/v1/signals/sources/opensky-network/refresh-signal') && method === 'POST') {
@@ -404,7 +520,7 @@ describe('App', () => {
         }
 
         if (url.endsWith('/api/v1/pizza-index/latest') && method === 'GET') {
-          return mockResponse(pizzaIndexPayload);
+          return mockResponse(currentPizzaIndexPayload);
         }
 
         if (url.endsWith('/api/v1/signals/sources/gdelt/detail') && method === 'GET') {
@@ -412,7 +528,8 @@ describe('App', () => {
         }
 
         if (url.endsWith('/api/v1/pizza-index/refresh') && method === 'POST') {
-          return mockResponse(pizzaIndexPayload);
+          currentPizzaIndexPayload = refreshedPizzaIndexPayload;
+          return mockResponse(refreshedPizzaIndexPayload);
         }
 
         if (url.endsWith('/api/v1/signals/sources/opensky-network/anomalies') && method === 'GET') {
@@ -452,6 +569,7 @@ describe('App', () => {
     expect(screen.getByText(/Upstream gamma/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Will a direct strike occur in region X before June 2026\?/i).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /Refresh source OpenSky Network/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Refresh source Pizza Index Activity/i })).toBeEnabled();
     expect(screen.queryByRole('button', { name: /Refresh source Social OSINT/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Social OSINT/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Satellite Monitoring/i)).not.toBeInTheDocument();
@@ -466,6 +584,37 @@ describe('App', () => {
     expect(screen.getAllByText(/pol-001/i).length).toBeGreaterThan(0);
   });
 
+  it('refreshes the OpenSky source separately from signal on the detail page', async () => {
+    render(<App />);
+
+    expect(await screen.findByText(/42% Watch/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^OpenSky Network$/i }));
+
+    expect(await screen.findByRole('heading', { name: /OpenSky Network/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Refresh Source$/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/OpenSky Network source refreshed from the latest collector check/i)).toBeInTheDocument(),
+    );
+
+    const refreshSourceCall = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        String(input).endsWith('/api/v1/signals/sources/opensky-network/refresh-source') &&
+        (init?.method ?? 'GET') === 'POST',
+    );
+
+    expect(refreshSourceCall).toBeTruthy();
+    expect(
+      fetchMock.mock.calls.find(
+        ([input, init]) =>
+          String(input).endsWith('/api/v1/signals/sources/opensky-network/refresh-signal') &&
+          (init?.method ?? 'GET') === 'POST',
+      ),
+    ).toBeFalsy();
+  });
+
   it('refreshes an individual source from the source list', async () => {
     render(<App />);
 
@@ -474,7 +623,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /Refresh source OpenSky Network/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/OpenSky Network refreshed from the latest collector check/i)).toBeInTheDocument(),
+      expect(screen.getByText(/OpenSky Network source and signal refreshed from the latest collector check/i)).toBeInTheDocument(),
     );
 
     expect(screen.getByText(/51% Watch/i)).toBeInTheDocument();
@@ -536,7 +685,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Refresh Signal$/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/OpenSky Network signal refreshed from the latest AI assessment/i)).toBeInTheDocument(),
+      expect(screen.getByText(/OpenSky Network signal refreshed from the latest stored source snapshot/i)).toBeInTheDocument(),
     );
 
     expect(getMetricValue('OpenSky Network detail', 'Signal Feature')).toBe('91%');
@@ -627,7 +776,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Refresh Signal$/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/GDELT signal refreshed from the latest AI assessment/i)).toBeInTheDocument(),
+      expect(screen.getByText(/GDELT signal refreshed from the latest stored source snapshot/i)).toBeInTheDocument(),
     );
 
     expect(getMetricValue('GDELT detail', 'Signal Feature')).toBe('84%');

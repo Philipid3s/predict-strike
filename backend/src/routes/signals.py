@@ -17,6 +17,7 @@ from src.services.seed_data import (
     refresh_opensky_signal,
     refresh_latest_signals,
     refresh_signal_source,
+    refresh_source_detail,
 )
 
 router = APIRouter(prefix="/signals", tags=["signals"])
@@ -43,6 +44,30 @@ def refresh_individual_signal_source(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+
+@router.post(
+    "/sources/opensky-network/refresh-source",
+    response_model=SignalSourceRefreshResponse,
+)
+def refresh_opensky_source_detail() -> SignalSourceRefreshResponse:
+    return refresh_source_detail("OpenSky Network")
+
+
+@router.post(
+    "/sources/notam-feed/refresh-source",
+    response_model=SignalSourceRefreshResponse,
+)
+def refresh_notam_source_detail() -> SignalSourceRefreshResponse:
+    return refresh_source_detail("NOTAM Feed")
+
+
+@router.post(
+    "/sources/gdelt/refresh-source",
+    response_model=SignalSourceRefreshResponse,
+)
+def refresh_gdelt_source_detail() -> SignalSourceRefreshResponse:
+    return refresh_source_detail("GDELT")
 
 
 @router.get("/sources/opensky-network/anomalies", response_model=OpenSkyAnomaliesResponse)

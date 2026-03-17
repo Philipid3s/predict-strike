@@ -205,6 +205,8 @@ Normalization guidelines:
 - keep feature names stable and versioned
 - store raw observations separately from derived features
 - preserve timestamps, source identifiers, and collection status
+- persist each source load and each derived feature computation as a historical
+  SQLite snapshot rather than overwriting the prior record
 
 ### C. Risk Scoring Model
 
@@ -250,6 +252,14 @@ elif risk_score < lower_threshold and market_price > predicted_probability:
 For the MVP, these comparisons should create alerts for analysts rather than
 placing trades automatically.
 
+Persistence requirements:
+
+- persist each Polymarket load in SQLite as a historical market snapshot
+- persist each model-versus-market opportunity set in SQLite as a historical
+  evaluation artifact
+- treat analyst alerts as downstream records derived from a persisted
+  opportunity/evaluation run
+
 ### E. Alert / Execution Engine
 
 Possible outputs:
@@ -274,6 +284,24 @@ Possible implementation:
 
 - FastAPI backend
 - React frontend
+
+Planned operator semantics:
+
+- Main dashboard `Refresh Signals` runs both source collection and signal
+  recomputation for each supported dashboard source:
+  `OpenSky Network`, `NOTAM Feed`, `GDELT`, and `Pizza Index Activity`.
+- Main dashboard `Evaluate Alerts` reloads the latest relevant Polymarket
+  market opportunities, uses the current model percentage, re-evaluates edge,
+  and persists both the market load and evaluation output before emitting any
+  analyst alerts.
+- The dashboard pre-source status panel refresh control for one source runs
+  both `Refresh Source` and `Refresh Signal` for that source only.
+- On source detail pages, `Refresh source` refreshes source collection only for
+  the current source, while `Refresh signal` recomputes the derived signal only
+  from the latest stored source data.
+- Dashboard reads show the latest persisted records, but the system keeps full
+  SQLite-backed history for source loads, signal snapshots, market
+  opportunities, and alert/evaluation outputs.
 
 ## 4. APIs and Data Sources
 
@@ -369,6 +397,8 @@ Suggested milestone outcomes:
 - cache API responses to avoid rate limits
 - store historical data for backtesting
 - log all signals with timestamps
+- store source loads, signal snapshots, Polymarket loads, opportunity outputs,
+  and alert evaluation outputs as timestamped SQLite history
 - use modular collectors so new data sources can be added easily
 
 ## 10. MVP Boundaries
@@ -380,6 +410,10 @@ Suggested milestone outcomes:
 - a transparent weighted scoring model
 - market comparison against selected geopolitical prediction markets
 - alert generation, audit logging, and analyst-facing review
+- operator refresh controls with explicit dashboard-versus-source-detail
+  semantics
+- historical SQLite persistence for source loads, signal snapshots, Polymarket
+  loads, opportunity snapshots, and alert/evaluation outputs
 
 ### Out of scope for the first implementation pass
 
