@@ -1,78 +1,40 @@
 # Specifications
 
-This folder stores functional and technical specifications for Predict Strike.
-The repository still inherits the AI-agent runtime baseline from the original
-skeleton, but project-specific specs should now be documented here as the
-implementation becomes concrete.
-
-## What `incubator` Means
-
-`incubator/` is a holding area for draft ideas that may be useful later but are
-not part of the active skeleton contract.
-
-Use `incubator/` for:
-
-- optional reference material
-- experimental specs
-- patterns that a future project may adopt, revise, or discard
-
-Do not treat files in `incubator/` as required defaults for every project built
-from this repository.
-
-By contrast, `technical/` contains the active agent-runtime baseline plus any
-Predict Strike technical specs adopted by the implementation.
-
-## What `agent-runtime` Means
-
-`agent-runtime` means the execution environment that runs an AI agent.
-
-It is the surrounding system that:
-
-- receives tasks
-- provides context
-- manages tool calls
-- applies limits, retries, and safety rules
-- tracks temporary state while the agent is working
-
-In this repository, `agent-runtime` documents define the default runtime
-architecture for running agents. Projects built from this skeleton are expected
-to either follow these specs or explicitly supersede them with ADRs.
+This folder stores the functional and technical specifications that describe the
+current Predict Strike system.
 
 ## Current Structure
 
 ```text
 specs/
-|-- incubator/               # Optional future drafts and experiments
-`-- technical/
-    |-- agent-runtime/       # Active task/tool/retry/state specs
-    `-- <project-specific specs go here>
+|-- technical/               # Active task/tool/retry/state specs and project technical docs
+|-- README.md
+|-- initial-draft-project-spec.md
+`-- pizza-index-google-maps-activity.md
 ```
 
-Current project kickoff spec:
+## What Lives Here
 
 - `docs/specs/initial-draft-project-spec.md`
-  - Working product scope, source inventory, MVP boundaries, and milestone plan
+  - Working product scope, implementation overview, MVP boundaries, and
+    milestone plan.
 - `docs/specs/pizza-index-google-maps-activity.md`
-  - Planned Google Maps behavioral-signal slice for target activity collection,
-    provider fallback rules, and `pizza_index` derivation
+  - Design reference for the Google Maps restaurant-activity slice that feeds
+    `pizza_index`.
+- `docs/specs/technical/agent-runtime/`
+  - Canonical runtime contract, state model, and validation fixtures used by the
+    agent workflow.
 
 ## Agent Runtime Baseline
 
-- `technical/agent-runtime/task.schema.json`
-  - Canonical task submission envelope.
-- `technical/agent-runtime/tool.contract.json`
-  - Canonical tool call request/response envelope.
-- `technical/agent-runtime/runtime-errors.md`
-  - Error classification and retry semantics.
-- `technical/agent-runtime/state-model.md`
-  - Memory model and promotion/retrieval rules.
-- `technical/agent-runtime/examples/`
-  - Fixture payloads and expected outcomes for schema validation.
+`agent-runtime` means the execution environment that runs an AI agent. In this
+repository, those docs define the default task envelope, tool contract, retry
+policy, and temporary state model used while the agent is working.
 
-Status:
-- These files remain normative for Predict Strike unless superseded by later
-  ADRs.
+These files remain normative for Predict Strike unless superseded by ADRs or a
+later technical spec.
 
 Related ADRs:
+
 - `docs/adr/0003-agent-runtime-contract-and-retry-policy.md`
 - `docs/adr/0004-agent-state-model-short-term-vs-long-term-memory.md`

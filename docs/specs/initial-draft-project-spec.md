@@ -4,6 +4,10 @@ This document is the working kickoff specification for **Predict Strike**. It
 captures the initial product direction, MVP boundaries, and implementation
 shape for the first planning phase.
 
+The repo now has implemented slices for OpenSky, NOTAM, GDELT, Pizza Index,
+market scanning, alerts, and the operator dashboard. Keep this document as the
+higher-level system spec and planning reference, not as a pure mockup.
+
 ## 1. Objective
 
 Build an automated system that:
@@ -31,6 +35,15 @@ Alert Engine
    ->
 Dashboard / Logs
 ```
+
+Current implementation:
+
+- FastAPI backend routes expose the signal slices, market endpoints, and alert
+  evaluation workflow.
+- React frontend renders the dashboard and source-detail views for the current
+  slices.
+- SQLite persists the latest snapshots and historical evaluation artifacts used
+  by the dashboard.
 
 ## 3. Modules
 
@@ -271,7 +284,7 @@ Possible outputs:
 
 **MVP default:** alerts only.
 
-### F. Dashboard (Optional)
+### F. Dashboard
 
 Simple web dashboard showing:
 
@@ -280,7 +293,7 @@ Simple web dashboard showing:
 - prediction market comparisons
 - alerts and trades
 
-Possible implementation:
+Current implementation:
 
 - FastAPI backend
 - React frontend
@@ -391,6 +404,8 @@ Suggested milestone outcomes:
 - **Milestone 5:** notifications, alert history, and analyst review loop
 - **Milestone 6:** operator dashboard with timelines and score-versus-market
   views
+
+Status: implemented in the current frontend and backend.
 
 ## 9. Best Practices
 

@@ -17,16 +17,30 @@ The repo should be configured with these environment variables:
 - `NOTAM_AUTH_URL`
 - `NOTAM_CLIENT_ID`
 - `NOTAM_CLIENT_SECRET`
+- `NOTAM_ENV`
+- `NOTAM_RESPONSE_FORMAT`
+- `NOTAM_DETAIL_FETCH_ENABLED`
+
+The backend also supports environment-scoped overrides for this slice:
+
+- `NOTAM_TEST_*`
+- `NOTAM_PRODUCTION_*`
+
+The unscoped `NOTAM_*` variables remain for legacy and local compatibility.
 
 Recommended staging values:
 
 - `NOTAM_AUTH_URL=https://api-staging.cgifederal-aim.com/v1/auth/token`
 - `NOTAM_API_BASE_URL=https://api-staging.cgifederal-aim.com/nmsapi/v1`
+- `NOTAM_ENV=test`
 
-The staging samples also indicate a required response-format header for
+The sample materials also indicate a required response-format header for
 `/v1/notams` requests:
 
 - `nmsResponseFormat: AIXM`
+
+In this repository, `NOTAM_RESPONSE_FORMAT` defaults to `GEOJSON`. Change it
+only if the target environment requires a different format.
 
 ## Auth Flow
 

@@ -33,6 +33,11 @@ should align with the accepted MVP stack in
 `docs/adr/0008-predict-strike-mvp-scope-and-initial-stack.md` while preserving
 the runtime contracts in `docs/specs/technical/agent-runtime/`.
 
+The repo now has implemented slices for OpenSky, NOTAM, GDELT, Pizza Index,
+market scanning, alerts, and the operator dashboard. The environment templates
+under `.env.example`, `backend/.env.example`, and `frontend/.env.example`
+document the local runtime inputs for those slices.
+
 ## Local Development (Without Docker)
 
 Set up `frontend/` and `backend/` using the selected React and FastAPI stack,
@@ -41,7 +46,7 @@ then run each service with its own native dev command.
 ## FAA NOTAM Onboarding
 
 If you are configuring the NOTAM slice, read
-[`docs/guides/notam-faa-integration.md`](/D:/Projects/predict-strike/docs/guides/notam-faa-integration.md)
+[`docs/guides/notam-faa-integration.md`](./notam-faa-integration.md)
 first. It documents the OAuth client-credentials flow, the required NMS-API
 environment variables, the endpoint set used by the repo, and how the sample
 files under `docs/ref/NOTAM SAMPLES/` map to implementation and testing.

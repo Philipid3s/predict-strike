@@ -1,66 +1,76 @@
 # Predict Strike
 
-Predict Strike is an OSINT-driven prediction system for monitoring geopolitical
-signals, estimating conflict risk, and comparing internal risk estimates with
-prediction market pricing.
+Predict Strike is an OSINT-driven monitoring system for collecting geopolitical
+and military-adjacent signals, converting them into structured risk features,
+and comparing internal conflict-risk estimates with prediction-market pricing.
 
-The repository starts from a multi-agent development skeleton and is now being
-bootstrapped into a domain-specific project with explicit ownership boundaries,
-ADR-driven architecture decisions, and a runtime baseline for agent execution.
+The current repository includes a working FastAPI backend, a React operator
+dashboard, SQLite-backed snapshot history, and source slices for OpenSky, FAA
+NOTAM, GDELT, Pizza Index activity, market opportunities, and analyst alerts.
 
-## Objective
+## Current Capabilities
 
-- Collect OSINT signals from aviation, maritime, airspace, satellite, news, and
-  social channels.
-- Normalize those inputs into structured features and anomaly scores.
-- Produce a lightweight conflict risk score that can be compared against market
-  probabilities.
-- Generate analyst alerts and, later, optional execution or trading signals.
+- Collect and normalize signal slices for `OpenSky Network`, `NOTAM Feed`,
+  `GDELT`, and `Pizza Index Activity`
+- Compute a transparent conflict-risk score from the latest signal snapshot
+- Pull market opportunities and compare model outputs with Polymarket pricing
+- Persist latest snapshots and historical evaluation artifacts in SQLite
+- Evaluate and store analyst-facing alerts from the current opportunity set
+- Expose dashboard and source-detail refresh flows with distinct
+  source-refresh versus signal-refresh semantics
 
-## Planned MVP
-
-- `backend/`: Python services built around FastAPI, scheduled collectors, and
-  scoring workflows.
-- `frontend/`: React-based operator dashboard for scores, signals, and alerts.
-- `data`: SQLite for local persistence and Redis for caching and task support.
-- `markets`: Polymarket scanner for question, price, volume, and divergence.
-- `alerts`: Telegram, Slack, or email notifications for notable mismatches.
-
-## Project Structure
+## Repository Structure
 
 ```text
 .
-|-- frontend/                 # Operator dashboard and analyst workflows
-|-- backend/                  # APIs, collectors, scoring, and alerting logic
+|-- frontend/                 # React operator dashboard
+|-- backend/                  # FastAPI API, collectors, services, tests
 |-- docs/
-|   |-- adr/                  # Architecture Decision Records
-|   |-- api/                  # Planned API contract
-|   |-- specs/                # Product and runtime specifications
-|   |   `-- technical/
-|   |       `-- agent-runtime/ # Core task/tool/retry/state specs
-|   `-- guides/               # Kickoff, onboarding, and workflow guides
-|-- docker-compose.yml        # Production compose runtime
-`-- docker-compose.dev.yml    # Development compose runtime
+|   |-- adr/                  # Architecture decisions
+|   |-- api/                  # OpenAPI contract
+|   |-- guides/               # Setup and operational guides
+|   |-- ref/                  # Reference material and fixtures
+|   `-- specs/                # Product and technical specifications
+|-- docker-compose.yml        # Production stack
+|-- docker-compose.dev.yml    # Development stack
+`-- AGENTS.md                 # Repository workflow and ownership rules
 ```
 
-## Run Modes
+## Local Setup
 
-### Development mode
+### Prerequisites
 
-The project supports both local development outside Docker and containerized
-compose-based development.
+- Python 3.12+
+- Node.js 20+
+- Docker Desktop or Docker Engine with Compose support
 
-#### Option A: local development
+### Environment Files
 
-1. Prepare environment files:
+Create local environment files before running the app:
 
 ```bash
 cp .env.example .env
-cp frontend/.env.example frontend/.env.local
 cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
 ```
 
-2. Start the backend:
+Do not commit `.env` files, API keys, OAuth credentials, or local databases.
+
+### Run With Docker
+
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+PowerShell wrapper:
+
+```powershell
+.\run-dev.ps1
+```
+
+### Run Without Docker
+
+Backend:
 
 ```bash
 cd backend
@@ -68,13 +78,7 @@ python -m pip install -e .
 uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Backend API: `http://localhost:8000`
-
-The live Pizza Index primary path now reads `PIZZA_INDEX_DASHBOARD_URL`
-(default: `https://www.pizzint.watch/api/dashboard-data`) and keeps the
-per-target Google Maps URLs for fallback use with SerpApi.
-
-3. Start the frontend in a second terminal:
+Frontend:
 
 ```bash
 cd frontend
@@ -82,113 +86,61 @@ npm install
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
-Frontend UI: `http://localhost:5173`
+## Runtime Endpoints
 
-This mode is intended for day-to-day feature work. The backend now allows the
-local frontend origin through `CORS_ALLOWED_ORIGINS` in `backend/.env`.
+- Frontend UI: `http://localhost:5173`
+- Backend API: `http://localhost:8000`
+- Health check: `http://localhost:8000/health`
+- OpenAPI reference: [`docs/api/openapi.yml`](/D:/Projects/predict-strike/docs/api/openapi.yml)
 
-#### Option B: development Docker compose
+Primary API groups:
 
-1. Prepare environment files:
+- `/api/v1/signals`
+- `/api/v1/risk`
+- `/api/v1/markets`
+- `/api/v1/alerts`
+- `/api/v1/pizza-index`
 
-```bash
-cp .env.example .env
-cp frontend/.env.example frontend/.env.local
-cp backend/.env.example backend/.env
-```
+## Testing
 
-2. Start the services:
-
-From the project root you can use the wrapper command:
-
-```powershell
-.\run-dev.ps1
-```
-
-It forwards to the existing compose dev runtime. Any extra flags are passed
-through, for example:
-
-```powershell
-.\run-dev.ps1 -d
-```
-
-You can still run compose directly if preferred:
-
-```bash
-docker compose -f docker-compose.dev.yml up --build
-```
-
-Runtime endpoints:
-
-- `frontend`: `http://localhost:5173`
-- `backend`: `http://localhost:8000`
-
-The dev compose stack runs the real Vite dev server and the real FastAPI/Uvicorn
-backend. Source code is bind-mounted so edits on the host are reflected inside
-containers.
-
-#### Optional development checks
+Backend:
 
 ```bash
 cd backend
 python -m unittest discover -s tests -p "test_*.py"
+```
 
+Frontend:
+
+```bash
 cd frontend
 npm test
 npm run build
 ```
 
-### Production mode
+## NOTAM Configuration
 
-1. Prepare environment files:
+The FAA NOTAM integration uses OAuth client credentials and environment-scoped
+configuration. Start with:
 
-```bash
-cp .env.example .env
-cp backend/.env.example backend/.env
-```
+- [`docs/guides/notam-faa-integration.md`](/D:/Projects/predict-strike/docs/guides/notam-faa-integration.md)
+- [`docs/ref/NOTAM SAMPLES/README.md`](/D:/Projects/predict-strike/docs/ref/NOTAM%20SAMPLES/README.md)
+- [`backend/.env.example`](/D:/Projects/predict-strike/backend/.env.example)
 
-2. Start the production stack:
+The backend supports `NOTAM_ENV` plus scoped overrides such as
+`NOTAM_TEST_*` and `NOTAM_PRODUCTION_*`.
 
-```bash
-docker compose up --build -d
-```
+## Documentation Map
 
-Runtime endpoints:
+- [`docs/guides/getting-started.md`](/D:/Projects/predict-strike/docs/guides/getting-started.md): setup and first-run flow
+- [`docs/specs/initial-draft-project-spec.md`](/D:/Projects/predict-strike/docs/specs/initial-draft-project-spec.md): product scope and implementation shape
+- [`docs/specs/README.md`](/D:/Projects/predict-strike/docs/specs/README.md): spec layout and runtime baseline
+- [`docs/adr/`](/D:/Projects/predict-strike/docs/adr): architecture decisions
+- [`docs/api/openapi.yml`](/D:/Projects/predict-strike/docs/api/openapi.yml): API contract
 
-- `frontend`: `http://localhost`
-- `backend`: `http://localhost:8000`
+## Workflow Notes
 
-The production frontend image builds the Vite app and serves the static bundle
-from Nginx. The production backend image runs the FastAPI app with Uvicorn.
-The frontend build reads `FRONTEND_VITE_API_URL` from the root `.env` file.
-For Polymarket, set `POLYMARKET_GAMMA_URL` to the Gamma base URL
-`https://gamma-api.polymarket.com/`; the backend normalizes it to the live
-events endpoint internally. If Gamma is blocked from your network, the backend
-falls back to `POLYMARKET_PIZZINT_BREAKING_URL`
-(`https://www.pizzint.watch/api/markets/breaking?window=6h&final_limit=20&format=ticker`)
-before degrading to bootstrap data. The `/api/v1/markets/opportunities`
-response now exposes `upstream` as `gamma`, `pizzint`, or `bootstrap`. For the
-Pizza Index primary feed, set
-`PIZZA_INDEX_DASHBOARD_URL` if you need to override the default PizzINT
-dashboard endpoint.
-
-#### Stop the production stack
-
-```bash
-docker compose down
-```
-
-## Kickoff Priorities
-
-1. Lock the MVP scope and implementation stack through ADRs.
-2. Build the first ingestion slice for flights, news, and market data.
-3. Define normalized feature schemas and an initial weighted risk model.
-4. Expose backend endpoints for signal timelines, scores, and market gaps.
-5. Add a minimal dashboard for analysts and alert delivery channels.
-
-## Contributing
-
-1. Keep architecture decisions in `docs/adr/`.
-2. Update `docs/api/openapi.yml` when backend APIs are introduced or changed.
-3. Respect ownership boundaries defined in `AGENTS.md` and
-   `docs/agents/ownership.yml`.
+- Keep architecture decisions in `docs/adr/`
+- Update `docs/api/openapi.yml` when API behavior changes
+- Respect ownership and delegation rules in [`AGENTS.md`](/D:/Projects/predict-strike/AGENTS.md)
+- Never commit secrets, credentials, `.env` files, or generated SQLite data
