@@ -38,6 +38,14 @@ the runtime contracts in `docs/specs/technical/agent-runtime/`.
 Set up `frontend/` and `backend/` using the selected React and FastAPI stack,
 then run each service with its own native dev command.
 
+## FAA NOTAM Onboarding
+
+If you are configuring the NOTAM slice, read
+[`docs/guides/notam-faa-integration.md`](/D:/Projects/predict-strike/docs/guides/notam-faa-integration.md)
+first. It documents the OAuth client-credentials flow, the required NMS-API
+environment variables, the endpoint set used by the repo, and how the sample
+files under `docs/ref/NOTAM SAMPLES/` map to implementation and testing.
+
 ## Testing
 
 Define and document test commands for the frontend, backend, and any background

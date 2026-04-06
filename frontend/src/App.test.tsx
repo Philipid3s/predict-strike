@@ -162,6 +162,53 @@ const gdeltDetailPayload = {
   },
 } as const;
 
+const notamDetailPayload = {
+  generated_at: '2026-03-07T09:04:10Z',
+  status: 'degraded',
+  summary:
+    'Checklist-first production mode is active. The current NOTAM set is concentrated in domestic and international operational notices, with a smaller cluster of alert-weighted restrictive items.',
+  notice_count: 67782,
+  alert_notice_count: 162,
+  restricted_notice_count: 91,
+  notam_spike: 0.34,
+  latest_updated_at: '2026-03-07T08:54:00Z',
+  effective_window_start: '2026-03-07T08:30:00Z',
+  effective_window_end: '2026-03-08T12:00:00Z',
+  classification_breakdown: [
+    { label: 'DOM', count: 42110 },
+    { label: 'INTL', count: 18721 },
+    { label: 'FDC', count: 6951 },
+  ],
+  location_breakdown: [
+    { label: 'KZLC', count: 182 },
+    { label: 'CYOO', count: 155 },
+    { label: 'VOBZ', count: 149 },
+  ],
+  representative_notices: [
+    {
+      notice_id: '1773638923902328',
+      location: 'KZLC',
+      classification: 'DOM',
+      text: 'AIRSPACE UAS WI AN AREA DEFINED AS 3NM RADIUS OF SALT LAKE CITY CTR.',
+      effective_start: '2026-03-07T08:30:00Z',
+      effective_end: '2026-03-07T18:00:00Z',
+      is_alert: true,
+      is_restricted: true,
+    },
+    {
+      notice_id: '1773091280111166',
+      location: 'CYOO',
+      classification: 'INTL',
+      text: 'RWY 12/30 EDGE LGT U/S.',
+      effective_start: '2026-03-07T09:00:00Z',
+      effective_end: '2026-03-08T12:00:00Z',
+      is_alert: false,
+      is_restricted: false,
+    },
+  ],
+  collector_fallback_reason: null,
+} as const;
+
 const refreshedGdeltSignalPayload = {
   source: {
     name: 'GDELT',
@@ -208,6 +255,18 @@ const refreshedGdeltDetailPayload = {
   freshness_score: 0.91,
   signal_article_count: 8,
   assessment: refreshedGdeltSignalPayload.assessment,
+} as const;
+
+const refreshedNotamDetailPayload = {
+  ...notamDetailPayload,
+  generated_at: '2026-03-07T09:05:35Z',
+  status: 'active',
+  notice_count: 67783,
+  alert_notice_count: 168,
+  restricted_notice_count: 96,
+  notam_spike: 0.49,
+  latest_updated_at: '2026-03-07T09:05:30Z',
+  collector_fallback_reason: null,
 } as const;
 
 const openSkyAnomaliesPayload = {
@@ -449,12 +508,14 @@ describe('App', () => {
   let riskScoreCallCount: number;
   let currentOpenSkyAnomaliesPayload: typeof openSkyAnomaliesPayload | typeof refreshedOpenSkyAnomaliesPayload;
   let currentGdeltDetailPayload: typeof gdeltDetailPayload | typeof refreshedGdeltDetailPayload;
+  let currentNotamDetailPayload: typeof notamDetailPayload | typeof refreshedNotamDetailPayload;
   let currentPizzaIndexPayload: typeof pizzaIndexPayload | typeof refreshedPizzaIndexPayload;
 
   beforeEach(() => {
     riskScoreCallCount = 0;
     currentOpenSkyAnomaliesPayload = openSkyAnomaliesPayload;
     currentGdeltDetailPayload = gdeltDetailPayload;
+    currentNotamDetailPayload = notamDetailPayload;
     currentPizzaIndexPayload = pizzaIndexPayload;
     fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
@@ -498,6 +559,7 @@ describe('App', () => {
         }
 
         if (url.endsWith('/api/v1/signals/sources/notam-feed/refresh-source') && method === 'POST') {
+          currentNotamDetailPayload = refreshedNotamDetailPayload;
           return mockResponse(refreshedNotamSourceOnlyPayload);
         }
 
@@ -525,6 +587,10 @@ describe('App', () => {
 
         if (url.endsWith('/api/v1/signals/sources/gdelt/detail') && method === 'GET') {
           return mockResponse(currentGdeltDetailPayload);
+        }
+
+        if (url.endsWith('/api/v1/signals/sources/notam-feed/detail') && method === 'GET') {
+          return mockResponse(currentNotamDetailPayload);
         }
 
         if (url.endsWith('/api/v1/pizza-index/refresh') && method === 'POST') {
@@ -721,6 +787,11 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /NOTAM Feed/i })).toBeInTheDocument();
     expect(getMetricLabels('NOTAM Feed detail').slice(0, 2)).toEqual(['Status', 'Signal Feature']);
+    expect(screen.getByText(/Checklist-first production mode is active/i)).toBeInTheDocument();
+    expect(screen.getByText(/Classification Breakdown/i)).toBeInTheDocument();
+    expect(screen.getByText(/Representative Notices/i)).toBeInTheDocument();
+    expect(screen.getByText(/AIRSPACE UAS WI AN AREA DEFINED AS 3NM RADIUS OF SALT LAKE CITY CTR/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Alert-weighted/i).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: /Open NOTAM signal feature logic/i }));
 

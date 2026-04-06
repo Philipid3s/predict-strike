@@ -5,6 +5,7 @@ import type {
   GdeltDetailResponse,
   GdeltSignalRefreshResponse,
   MarketOpportunitiesResponse,
+  NotamDetailResponse,
   OpenSkyAnomaliesResponse,
   OpenSkySignalRefreshResponse,
   PizzaIndexSnapshotResponse,
@@ -13,10 +14,21 @@ import type {
   SignalSourceRefreshResponse,
 } from '../types/api';
 
-const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+function getBaseUrl(): string {
+  return (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+}
+
+export function buildApiUrl(path: string): string {
+  const baseUrl = getBaseUrl();
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  if (baseUrl === '/api' && normalizedPath.startsWith('/api/')) {
+    return normalizedPath;
+  }
+  return `${baseUrl}${normalizedPath}`;
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, {
+  const response = await fetch(buildApiUrl(path), {
     headers: {
       'Content-Type': 'application/json',
       ...(init?.headers ?? {}),
@@ -67,6 +79,10 @@ export function refreshNotamSource(): Promise<SignalSourceRefreshResponse> {
   return request<SignalSourceRefreshResponse>('/api/v1/signals/sources/notam-feed/refresh-source', {
     method: 'POST',
   });
+}
+
+export function getNotamDetail(): Promise<NotamDetailResponse> {
+  return request<NotamDetailResponse>('/api/v1/signals/sources/notam-feed/detail');
 }
 
 export function refreshGdeltSource(): Promise<SignalSourceRefreshResponse> {

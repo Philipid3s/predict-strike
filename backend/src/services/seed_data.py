@@ -4,6 +4,7 @@ from src.models.schemas import (
     GdeltDetailResponse,
     GdeltSignalRefreshResponse,
     MarketOpportunitiesResponse,
+    NotamDetailResponse,
     OpenSkyAnomaliesResponse,
     OpenSkySignalRefreshResponse,
     PizzaIndexSnapshotResponse,
@@ -25,6 +26,7 @@ from src.services.pizza_index_pipeline import (
 from src.services.signal_pipeline import (
     get_or_create_latest_snapshot,
     get_latest_gdelt_detail as load_latest_gdelt_detail,
+    get_latest_notam_detail as load_latest_notam_detail,
     get_latest_opensky_anomalies as load_latest_opensky_anomalies,
     refresh_gdelt_signal as load_refreshed_gdelt_signal,
     refresh_latest_snapshot,
@@ -48,6 +50,10 @@ def refresh_signal_source(source_name: str) -> SignalSourceRefreshResponse:
 
 def refresh_source_detail(source_name: str) -> SignalSourceRefreshResponse:
     return load_source_detail_refresh(source_name)
+
+
+def get_latest_notam_detail() -> NotamDetailResponse:
+    return load_latest_notam_detail()
 
 
 def get_latest_opensky_anomalies() -> OpenSkyAnomaliesResponse:

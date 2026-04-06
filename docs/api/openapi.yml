@@ -345,6 +345,75 @@ paths:
                         - Russia
                       explanation: Elevated military-adjacent airlift and tanker activity remains concentrated in the current hotspot sector.
 
+  /api/v1/signals/sources/notam-feed/detail:
+    get:
+      tags: [signals]
+      summary: Get the latest analyst-facing NOTAM detail breakdown
+      description: |
+        Returns the latest NOTAM-derived summary used to explain the current
+        `notam_spike` feature on the dedicated source detail page.
+        The backend reads the latest stored NOTAM observation collected from
+        the FAA NMS-API and normalizes it into counts, notable locations,
+        representative notices, and provenance fields for analysts.
+        This endpoint is intentionally not a raw passthrough of the upstream
+        NMS-API response.
+      operationId: getNotamDetail
+      responses:
+        "200":
+          description: NOTAM detail returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotamDetailResponse"
+              examples:
+                default:
+                  value:
+                    generated_at: "2026-04-05T09:06:00Z"
+                    status: active
+                    notam_count: 12
+                    alert_notam_count: 5
+                    classification_breakdown:
+                      - label: DOMESTIC
+                        count: 7
+                      - label: MILITARY
+                        count: 3
+                      - label: FDC
+                        count: 2
+                    accountability_breakdown:
+                      - label: ATL
+                        count: 4
+                      - label: ZBW
+                        count: 3
+                    location_breakdown:
+                      - label: KATL
+                        count: 4
+                      - label: KZBW
+                        count: 3
+                    latest_updated_at: "2026-04-05T09:02:00Z"
+                    latest_effective_start: "2026-04-05T10:00:00Z"
+                    latest_effective_end: "2026-04-05T12:00:00Z"
+                    representative_notices:
+                      - notice_id: NMS_ID_1234567812345678
+                        classification: DOMESTIC
+                        account_id: ATL
+                        location: ATL
+                        icao_location: KATL
+                        number: 09/186
+                        text: AIRSPACE RESTRICTION FOR MILITARY EXERCISE
+                        effective_start: "2026-04-05T10:00:00Z"
+                        effective_end: "2026-04-05T12:00:00Z"
+                        last_updated: "2026-04-05T10:21:00Z"
+                        is_alert: true
+                    provenance:
+                      api_base_url_configured: true
+                      auth_url_configured: true
+                      credentials_configured: true
+                      response_format: GEOJSON
+                      classification_filter: DOMESTIC
+                      collection_mode: checklist_plus_detail
+                      comparison_basis: Source detail summarizes the latest stored FAA NOTAM observation, with representative notices and counts derived from checklist and targeted pulls.
+                      collector_fallback_reason: null
+
   /api/v1/signals/sources/gdelt/detail:
     get:
       tags: [signals]
@@ -1317,6 +1386,166 @@ components:
           $ref: "#/components/schemas/GdeltSignalAssessment"
         provenance:
           $ref: "#/components/schemas/GdeltProvenance"
+
+    NotamCountBreakdown:
+      type: object
+      additionalProperties: false
+      required: [label, count]
+      properties:
+        label:
+          type: string
+        count:
+          type: integer
+          minimum: 0
+
+    NotamRepresentativeNotice:
+      type: object
+      additionalProperties: false
+      required:
+        - notice_id
+        - classification
+        - account_id
+        - location
+        - icao_location
+        - number
+        - text
+        - is_alert
+      properties:
+        notice_id:
+          type: string
+        classification:
+          type:
+            - string
+            - "null"
+        account_id:
+          type:
+            - string
+            - "null"
+        location:
+          type:
+            - string
+            - "null"
+        icao_location:
+          type:
+            - string
+            - "null"
+        number:
+          type:
+            - string
+            - "null"
+        text:
+          type: string
+        effective_start:
+          type:
+            - string
+            - "null"
+          format: date-time
+        effective_end:
+          type:
+            - string
+            - "null"
+          format: date-time
+        last_updated:
+          type:
+            - string
+            - "null"
+          format: date-time
+        is_alert:
+          type: boolean
+
+    NotamProvenance:
+      type: object
+      additionalProperties: false
+      required:
+        - api_base_url_configured
+        - auth_url_configured
+        - credentials_configured
+        - response_format
+        - classification_filter
+        - collection_mode
+        - comparison_basis
+      properties:
+        api_base_url_configured:
+          type: boolean
+        auth_url_configured:
+          type: boolean
+        credentials_configured:
+          type: boolean
+        response_format:
+          type: string
+          enum: [AIXM, GEOJSON]
+        classification_filter:
+          type:
+            - string
+            - "null"
+        collection_mode:
+          type: string
+        comparison_basis:
+          type: string
+        collector_fallback_reason:
+          type:
+            - string
+            - "null"
+
+    NotamDetailResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - generated_at
+        - status
+        - notam_count
+        - alert_notam_count
+        - classification_breakdown
+        - accountability_breakdown
+        - location_breakdown
+        - representative_notices
+        - provenance
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [planned, active, degraded]
+        notam_count:
+          type: integer
+          minimum: 0
+        alert_notam_count:
+          type: integer
+          minimum: 0
+        classification_breakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotamCountBreakdown"
+        accountability_breakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotamCountBreakdown"
+        location_breakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotamCountBreakdown"
+        latest_updated_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        latest_effective_start:
+          type:
+            - string
+            - "null"
+          format: date-time
+        latest_effective_end:
+          type:
+            - string
+            - "null"
+          format: date-time
+        representative_notices:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotamRepresentativeNotice"
+        provenance:
+          $ref: "#/components/schemas/NotamProvenance"
 
     RiskScoreRequest:
       type: object

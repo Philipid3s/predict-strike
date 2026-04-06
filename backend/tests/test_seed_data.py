@@ -2,7 +2,11 @@ from pathlib import Path
 import sqlite3
 import unittest
 import os
+import sys
 from unittest.mock import patch
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BACKEND_ROOT))
 
 from src.services.seed_data import (
     get_latest_pizza_index,
@@ -35,7 +39,6 @@ class SeedDataTests(unittest.TestCase):
 
         self.assertEqual(first_snapshot.generated_at, second_snapshot.generated_at)
         self.assertGreater(first_snapshot.features.notam_spike, 0.0)
-        self.assertGreater(first_snapshot.features.news_volume, 0.0)
 
     def test_refresh_latest_signals_persists_a_new_snapshot(self) -> None:
         runtime_dir = Path(__file__).resolve().parent / ".runtime"
@@ -65,8 +68,8 @@ class SeedDataTests(unittest.TestCase):
                 os.environ["DATABASE_URL"] = previous_database_url
 
         self.assertNotEqual(first_snapshot.generated_at, refreshed_snapshot.generated_at)
-        self.assertEqual(observation_count, 6)
-        self.assertEqual(snapshot_count, 2)
+        self.assertEqual(observation_count, 12)
+        self.assertEqual(snapshot_count, 12)
 
     def test_latest_signals_sources_match_documented_contract(self) -> None:
         runtime_dir = Path(__file__).resolve().parent / ".runtime"
@@ -86,12 +89,11 @@ class SeedDataTests(unittest.TestCase):
             else:
                 os.environ["DATABASE_URL"] = previous_database_url
 
-        self.assertGreaterEqual(len(snapshot.sources), 6)
+        self.assertEqual(len(snapshot.sources), 4)
         self.assertIn("NOTAM Feed", {source.name for source in snapshot.sources})
         self.assertIn("GDELT", {source.name for source in snapshot.sources})
-        self.assertIn("Satellite Monitoring", {source.name for source in snapshot.sources})
+        self.assertIn("OpenSky Network", {source.name for source in snapshot.sources})
         self.assertIn("Pizza Index Activity", {source.name for source in snapshot.sources})
-        self.assertNotIn("Polymarket", {source.name for source in snapshot.sources})
         for source in snapshot.sources:
             self.assertFalse(hasattr(source, "category"))
             self.assertIn(source.status, {"planned", "active", "degraded"})

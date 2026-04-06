@@ -180,6 +180,39 @@ class GdeltDetailResponse(BaseModel):
     provenance: GdeltProvenance
 
 
+class NotamCountBreakdown(BaseModel):
+    label: str
+    count: int = Field(..., ge=0)
+
+
+class NotamNoticeSummary(BaseModel):
+    notice_id: str
+    location: str | None = None
+    classification: str | None = None
+    text: str
+    effective_start: datetime | None = None
+    effective_end: datetime | None = None
+    is_alert: bool
+    is_restricted: bool
+
+
+class NotamDetailResponse(BaseModel):
+    generated_at: datetime
+    status: SourceStatus
+    summary: str
+    notice_count: int = Field(..., ge=0)
+    alert_notice_count: int = Field(..., ge=0)
+    restricted_notice_count: int = Field(..., ge=0)
+    notam_spike: float = Field(..., ge=0.0, le=1.0)
+    latest_updated_at: datetime | None = None
+    effective_window_start: datetime | None = None
+    effective_window_end: datetime | None = None
+    classification_breakdown: list[NotamCountBreakdown]
+    location_breakdown: list[NotamCountBreakdown]
+    representative_notices: list[NotamNoticeSummary]
+    collector_fallback_reason: str | None = None
+
+
 class MarketOpportunity(BaseModel):
     market_id: str
     question: str

@@ -412,6 +412,48 @@ select {
   color: #b6c4d8;
 }
 
+.notam-notice-list {
+  display: grid;
+  gap: 12px;
+}
+
+.notam-notice-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(12, 18, 32, 0.84);
+}
+
+.notam-notice-card p {
+  margin: 0;
+  color: #b6c4d8;
+}
+
+.notam-notice-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.notam-notice-card__header strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.notam-notice-card__flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.notam-notice-card__window {
+  font-size: 0.84rem;
+}
+
 .anomaly-list {
   display: grid;
   gap: 8px;

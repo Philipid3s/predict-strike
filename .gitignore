@@ -3,24 +3,72 @@ node_modules/
 .pnp
 .pnp.js
 
-# Environment files — NEVER commit these
+# Environment files - NEVER commit these
 .env
 .env.*
+*.env
+*.env.*
 !.env.example
 !.env.*.example
+!**/.env.example
+!**/.env.*.example
 
-# Python caches
+# Secrets, credentials, and local confidential material
+secrets/
+secret/
+credentials/
+credential/
+private/
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+*.keystore
+*.asc
+*.kdbx
+*.ovpn
+*.mobileprovision
+*.tfvars
+*.tfvars.json
+*service-account*.json
+*credentials*.json
+*secret*.json
+*_rsa
+*_ed25519
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+.npmrc
+.yarnrc.yml
+.pypirc
+
+# Python caches and local environments
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.venv/
+venv/
+ENV/
+env/
 
 # Local SQLite and runtime databases
 *.db
+*.db-*
 *.sqlite
 *.sqlite3
+*.sqlite-*
 backend/tests/.runtime/
 backend/backend/tests/.runtime/
 tests/acceptance/*.db
+tests/acceptance/**/*.db
 backend/pytest-cache-files-*/
 
 # Build outputs
@@ -33,6 +81,7 @@ out/
 # Test coverage
 coverage/
 .nyc_output/
+htmlcov/
 
 # Logs
 logs/
@@ -55,8 +104,10 @@ Thumbs.db
 !.vscode/settings.json
 .idea/
 
-# Docker volumes (local) — add service-specific volume paths after stack selection
+# Docker volumes and local overrides
 postgres-data/
+docker-compose.override.yml
+docker-compose.local.yml
 
 # Temp
 tmp/

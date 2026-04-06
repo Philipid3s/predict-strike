@@ -149,6 +149,39 @@ export interface GdeltDetailResponse {
   provenance: GdeltProvenance;
 }
 
+export interface NotamRankedItem {
+  label: string;
+  count: number;
+}
+
+export interface NotamNoticeSummary {
+  notice_id: string;
+  location: string | null;
+  classification: string | null;
+  text: string;
+  effective_start: string | null;
+  effective_end: string | null;
+  is_alert: boolean;
+  is_restricted: boolean;
+}
+
+export interface NotamDetailResponse {
+  generated_at: string;
+  status: 'planned' | 'active' | 'degraded';
+  summary: string;
+  notice_count: number;
+  alert_notice_count: number;
+  restricted_notice_count: number;
+  notam_spike: number;
+  latest_updated_at: string | null;
+  effective_window_start: string | null;
+  effective_window_end: string | null;
+  classification_breakdown: NotamRankedItem[];
+  location_breakdown: NotamRankedItem[];
+  representative_notices: NotamNoticeSummary[];
+  collector_fallback_reason: string | null;
+}
+
 export interface RiskBreakdownItem {
   feature: keyof FeatureVector;
   value: number;

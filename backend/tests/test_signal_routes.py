@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import UTC, datetime
 import os
 import sqlite3
 import sys
@@ -12,6 +13,7 @@ sys.path.insert(0, str(BACKEND_ROOT))
 
 from src.main import app  # noqa: E402
 from src.models.schemas import GdeltSignalAssessment, OpenSkyStrikeAssessment  # noqa: E402
+from src.storage.signal_store import SignalStore  # noqa: E402
 
 
 class SignalRouteTests(unittest.TestCase):
@@ -257,6 +259,88 @@ class SignalRouteTests(unittest.TestCase):
                 for headline in payload["headlines"]
             )
         )
+
+    def test_notam_detail_endpoint_returns_persisted_breakdown(self) -> None:
+        runtime_dir = Path(__file__).resolve().parent / ".runtime"
+        runtime_dir.mkdir(exist_ok=True)
+        database_path = runtime_dir / "notam-detail.db"
+        if database_path.exists():
+            database_path.unlink()
+
+        original_database_url = os.environ.get("DATABASE_URL")
+        database_url = f"sqlite:///{database_path.as_posix()}"
+        os.environ["DATABASE_URL"] = database_url
+        try:
+            store = SignalStore(database_url)
+            store.save_source_observation(
+                source_name="NOTAM Feed",
+                collected_at=datetime(2026, 4, 5, 12, 30, tzinfo=UTC),
+                status="degraded",
+                payload={
+                    "status": "Success",
+                    "data": {
+                        "checklist": [
+                            {
+                                "id": "1757616312849974",
+                                "classification": "DOMESTIC",
+                                "accountId": "ATL",
+                                "number": "09/186",
+                                "location": "ATL",
+                                "icaoLocation": "KATL",
+                                "lastUpdated": "2025-09-12T10:21:00Z",
+                            },
+                            {
+                                "id": "1757617034473413",
+                                "classification": "MILITARY",
+                                "accountId": "ADW",
+                                "number": "09/193",
+                                "location": "ADW",
+                                "icaoLocation": "KADW",
+                                "lastUpdated": "2025-09-12T11:21:00Z",
+                                "text": "AIRSPACE RESTRICTION FOR MILITARY EXERCISE",
+                            },
+                            {
+                                "id": "1757616991582748",
+                                "classification": "RESTRICTED AIRSPACE",
+                                "accountId": "PAMH",
+                                "number": "09/192",
+                                "location": "PAMH",
+                                "icaoLocation": "KPAM",
+                                "lastUpdated": "2025-09-12T12:21:00Z",
+                                "text": "TFR ACTIVE",
+                            },
+                        ]
+                    },
+                    "_fallback_reason": "rate limit",
+                },
+            )
+
+            client = TestClient(app)
+            with patch(
+                "src.services.signal_pipeline.refresh_source_detail",
+                side_effect=AssertionError("detail endpoint should use the stored NOTAM observation"),
+            ):
+                response = client.get("/api/v1/signals/sources/notam-feed/detail")
+        finally:
+            if original_database_url is None:
+                os.environ.pop("DATABASE_URL", None)
+            else:
+                os.environ["DATABASE_URL"] = original_database_url
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["status"], "degraded")
+        self.assertEqual(payload["notice_count"], 3)
+        self.assertEqual(payload["alert_notice_count"], 2)
+        self.assertEqual(payload["restricted_notice_count"], 2)
+        self.assertEqual(payload["collector_fallback_reason"], "rate limit")
+        self.assertIn("3 notices", payload["summary"])
+        self.assertEqual(payload["classification_breakdown"][0]["label"], "DOMESTIC")
+        self.assertEqual(payload["location_breakdown"][0]["label"], "KATL")
+        self.assertGreaterEqual(len(payload["representative_notices"]), 2)
+        self.assertTrue(payload["representative_notices"][0]["is_alert"])
+        self.assertTrue(payload["representative_notices"][0]["is_restricted"])
+        self.assertTrue(payload["latest_updated_at"].startswith("2025-09-12T12:21"))
 
     def test_opensky_refresh_signal_updates_snapshot_feature_and_region(self) -> None:
         runtime_dir = Path(__file__).resolve().parent / ".runtime"

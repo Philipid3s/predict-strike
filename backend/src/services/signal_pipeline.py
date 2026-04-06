@@ -13,7 +13,14 @@ from src.collectors.gdelt import (
     is_alert_article,
     parse_articles,
 )
-from src.collectors.notam import NotamCollector
+from src.collectors.notam import (
+    NOTAM_ALERT_KEYWORDS,
+    NotamCollector,
+    NotamNotice,
+    NotamObservation,
+    compute_notam_spike,
+    parse_notices,
+)
 from src.collectors.opensky import (
     OpenSkyCollector,
     assess_opensky_anomalies,
@@ -30,6 +37,9 @@ from src.models.schemas import (
     GdeltSignalAssessment,
     GdeltSignalRefreshResponse,
     LatestSignalsResponse,
+    NotamCountBreakdown,
+    NotamDetailResponse,
+    NotamNoticeSummary,
     OpenSkyAnomaliesResponse,
     OpenSkyAnomaly,
     OpenSkySignalRefreshResponse,
@@ -310,7 +320,18 @@ def _collect_single_source(source_name: str) -> SingleSourceRefreshResult:
         payload = _opensky_payload_with_assessment(observation.raw_payload, None)
     elif source_name == "NOTAM Feed":
         observation = NotamCollector(
-            source_url=settings.notam_source_url
+            source_url=settings.notam_source_url,
+            auth_url=settings.notam_auth_url,
+            api_base_url=settings.notam_api_base_url,
+            client_id=settings.notam_client_id,
+            client_secret=settings.notam_client_secret,
+            classification=settings.notam_classification,
+            accountability=settings.notam_accountability,
+            location=settings.notam_location,
+            response_format=settings.notam_response_format,
+            detail_fetch_enabled=settings.notam_detail_fetch_enabled,
+            max_items=settings.notam_max_items,
+            timeout_seconds=settings.notam_timeout_seconds,
         ).fetch_observation()
         feature_name = "notam_spike"
         feature_value = observation.notam_spike
@@ -665,6 +686,181 @@ def _rank_counts(items: list[str], limit: int = 5) -> list[GdeltCountBreakdown]:
         GdeltCountBreakdown(label=label, count=count)
         for label, count in counts.most_common(limit)
     ]
+
+
+def _coerce_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value
+    if not isinstance(value, str):
+        return None
+
+    normalized = value.strip()
+    if not normalized:
+        return None
+
+    candidates = [normalized]
+    if normalized.endswith("Z"):
+        candidates.insert(0, normalized[:-1] + "+00:00")
+
+    for candidate in candidates:
+        try:
+            return datetime.fromisoformat(candidate)
+        except ValueError:
+            continue
+
+    for pattern in ("%Y%m%d%H%M%S", "%Y%m%d%H%M"):
+        try:
+            return datetime.strptime(normalized, pattern).replace(tzinfo=UTC)
+        except ValueError:
+            continue
+
+    return None
+
+
+def _find_latest_datetime(payload: Any, *keys: str) -> datetime | None:
+    found: list[datetime] = []
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in keys:
+                    dt_value = _coerce_datetime(value)
+                    if dt_value is not None:
+                        found.append(dt_value)
+                _walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                _walk(item)
+
+    _walk(payload)
+    return max(found) if found else None
+
+
+def _find_effective_window(notices: list[NotamNotice]) -> tuple[datetime | None, datetime | None]:
+    starts = [_coerce_datetime(notice.effective_start) for notice in notices]
+    ends = [_coerce_datetime(notice.effective_end) for notice in notices]
+    start_values = [value for value in starts if value is not None]
+    end_values = [value for value in ends if value is not None]
+    return (
+        min(start_values) if start_values else None,
+        max(end_values) if end_values else None,
+    )
+
+
+def _notam_is_alert(notice: NotamNotice) -> bool:
+    haystack = f"{notice.classification or ''} {notice.text}".upper()
+    return any(keyword in haystack for keyword in NOTAM_ALERT_KEYWORDS)
+
+
+def _notam_is_restricted(notice: NotamNotice) -> bool:
+    haystack = f"{notice.classification or ''} {notice.text}".upper()
+    return any(keyword in haystack for keyword in ("RESTRICT", "TFR", "AIRSPACE RESTRICTION"))
+
+
+def _notam_notice_priority(notice: NotamNotice) -> tuple[int, int, datetime]:
+    start = _coerce_datetime(notice.effective_start)
+    end = _coerce_datetime(notice.effective_end)
+    effective_dt = end or start or datetime.min.replace(tzinfo=UTC)
+    return (
+        1 if _notam_is_alert(notice) else 0,
+        1 if _notam_is_restricted(notice) else 0,
+        effective_dt,
+    )
+
+
+def _notam_notice_summary(notice: NotamNotice) -> NotamNoticeSummary:
+    return NotamNoticeSummary(
+        notice_id=notice.notice_id,
+        location=notice.location,
+        classification=notice.classification,
+        text=notice.text,
+        effective_start=_coerce_datetime(notice.effective_start),
+        effective_end=_coerce_datetime(notice.effective_end),
+        is_alert=_notam_is_alert(notice),
+        is_restricted=_notam_is_restricted(notice),
+    )
+
+
+def _notam_count_breakdown(values: list[str]) -> list[NotamCountBreakdown]:
+    return [
+        NotamCountBreakdown(label=label, count=count)
+        for label, count in Counter(values).most_common()
+    ]
+
+
+def _notam_fallback_reason_from_payload(payload: dict[str, Any]) -> str | None:
+    fallback_reason = payload.get("_fallback_reason")
+    if isinstance(fallback_reason, str) and fallback_reason.strip():
+        return fallback_reason.strip()
+    return None
+
+
+def get_latest_notam_detail() -> NotamDetailResponse:
+    settings = get_settings()
+    store = SignalStore(settings.database_url)
+    latest = store.get_latest_source_observation("NOTAM Feed")
+
+    if latest is None:
+        latest_snapshot = store.get_latest_signal_snapshot() or _blank_snapshot()
+        _, latest = _ensure_latest_source_payload(store, latest_snapshot, "NOTAM Feed")
+
+    collected_at = datetime.fromisoformat(latest["collected_at"])
+    status = latest["status"]
+    payload = latest["payload"]
+    notices = parse_notices(payload)
+    fallback_reason = _notam_fallback_reason_from_payload(payload)
+
+    sorted_notices = sorted(notices, key=_notam_notice_priority, reverse=True)
+    representative_notices = [
+        _notam_notice_summary(notice)
+        for notice in sorted_notices[:5]
+    ]
+    alert_notice_count = sum(1 for notice in notices if _notam_is_alert(notice))
+    restricted_notice_count = sum(1 for notice in notices if _notam_is_restricted(notice))
+    classification_breakdown = _notam_count_breakdown(
+        [(notice.classification.strip() if isinstance(notice.classification, str) and notice.classification.strip() else "Unspecified") for notice in notices]
+    )
+    location_breakdown = _notam_count_breakdown(
+        [(notice.location.strip() if isinstance(notice.location, str) and notice.location.strip() else "Unspecified") for notice in notices]
+    )
+    latest_updated_at = _find_latest_datetime(
+        payload,
+        "lastUpdated",
+        "lastUpdatedDate",
+        "lastUpdate",
+        "updateTs",
+    )
+    effective_window_start, effective_window_end = _find_effective_window(notices)
+
+    if notices:
+        location_count = len({notice.location for notice in notices if notice.location})
+        summary = (
+            f"Latest stored NOTAM observation contains {len(notices)} notices across "
+            f"{location_count} locations. "
+            f"{alert_notice_count} are alert-level and {restricted_notice_count} are restricted."
+        )
+    else:
+        summary = "Latest stored NOTAM observation contains no parseable notices."
+
+    if fallback_reason:
+        summary = f"{summary} Collector fallback: {fallback_reason}."
+
+    return NotamDetailResponse(
+        generated_at=collected_at,
+        status=status,
+        summary=summary,
+        notice_count=len(notices),
+        alert_notice_count=alert_notice_count,
+        restricted_notice_count=restricted_notice_count,
+        notam_spike=compute_notam_spike(notices),
+        latest_updated_at=latest_updated_at,
+        effective_window_start=effective_window_start,
+        effective_window_end=effective_window_end,
+        classification_breakdown=classification_breakdown,
+        location_breakdown=location_breakdown,
+        representative_notices=representative_notices,
+        collector_fallback_reason=fallback_reason,
+    )
 
 
 def get_latest_gdelt_detail() -> GdeltDetailResponse:

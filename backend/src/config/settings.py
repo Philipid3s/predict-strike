@@ -34,6 +34,22 @@ def _load_backend_env_file() -> None:
     _ENV_LOADED = True
 
 
+def _env_or_none(name: str) -> str | None:
+    value = os.getenv(name)
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
+def _resolve_notam_env_value(environment: str, suffix: str, legacy_name: str) -> str | None:
+    scoped_name = f"NOTAM_{environment.upper()}_{suffix}"
+    scoped_value = _env_or_none(scoped_name)
+    if scoped_value is not None:
+        return scoped_value
+    return _env_or_none(legacy_name)
+
+
 @dataclass(frozen=True)
 class Settings:
     service_name: str
@@ -42,7 +58,19 @@ class Settings:
     database_url: str
     cors_allowed_origins: tuple[str, ...]
     default_region_focus: str
+    notam_environment: str
     notam_source_url: str | None
+    notam_api_base_url: str | None
+    notam_auth_url: str | None
+    notam_client_id: str | None
+    notam_client_secret: str | None
+    notam_classification: str | None
+    notam_accountability: str | None
+    notam_location: str | None
+    notam_response_format: str
+    notam_detail_fetch_enabled: bool
+    notam_max_items: int
+    notam_timeout_seconds: int
     gdelt_source_url: str | None
     gdelt_timeout_seconds: int
     gdelt_ai_api_url: str | None
@@ -79,6 +107,11 @@ def get_settings() -> Settings:
     pizza_index_enable_live_provider = os.getenv(
         "PIZZA_INDEX_ENABLE_LIVE_PROVIDER", "true"
     ).strip().lower() in {"1", "true", "yes", "on"}
+    notam_environment = os.getenv("NOTAM_ENV", "production").strip().lower()
+    notam_detail_fetch_enabled = os.getenv(
+        "NOTAM_DETAIL_FETCH_ENABLED",
+        "false" if notam_environment == "production" else "true",
+    ).strip().lower() in {"1", "true", "yes", "on"}
     return Settings(
         service_name=os.getenv("SERVICE_NAME", "predict-strike-backend"),
         service_version=os.getenv("SERVICE_VERSION", "0.1.0"),
@@ -90,7 +123,27 @@ def get_settings() -> Settings:
             if origin.strip()
         ),
         default_region_focus=os.getenv("DEFAULT_REGION_FOCUS", "global-watchlist"),
-        notam_source_url=os.getenv("NOTAM_SOURCE_URL"),
+        notam_environment=notam_environment,
+        notam_source_url=_resolve_notam_env_value(notam_environment, "SOURCE_URL", "NOTAM_SOURCE_URL"),
+        notam_api_base_url=_resolve_notam_env_value(
+            notam_environment, "API_BASE_URL", "NOTAM_API_BASE_URL"
+        ),
+        notam_auth_url=_resolve_notam_env_value(notam_environment, "AUTH_URL", "NOTAM_AUTH_URL"),
+        notam_client_id=_resolve_notam_env_value(notam_environment, "CLIENT_ID", "NOTAM_CLIENT_ID"),
+        notam_client_secret=_resolve_notam_env_value(
+            notam_environment, "CLIENT_SECRET", "NOTAM_CLIENT_SECRET"
+        ),
+        notam_classification=_resolve_notam_env_value(
+            notam_environment, "CLASSIFICATION", "NOTAM_CLASSIFICATION"
+        ),
+        notam_accountability=_resolve_notam_env_value(
+            notam_environment, "ACCOUNTABILITY", "NOTAM_ACCOUNTABILITY"
+        ),
+        notam_location=_resolve_notam_env_value(notam_environment, "LOCATION", "NOTAM_LOCATION"),
+        notam_response_format=os.getenv("NOTAM_RESPONSE_FORMAT", "GEOJSON").strip().upper(),
+        notam_detail_fetch_enabled=notam_detail_fetch_enabled,
+        notam_max_items=max(int(os.getenv("NOTAM_MAX_ITEMS", "20")), 1),
+        notam_timeout_seconds=max(int(os.getenv("NOTAM_TIMEOUT_SECONDS", "10")), 1),
         gdelt_source_url=os.getenv("GDELT_SOURCE_URL"),
         gdelt_timeout_seconds=max(
             int(os.getenv("GDELT_TIMEOUT_SECONDS", "30")),

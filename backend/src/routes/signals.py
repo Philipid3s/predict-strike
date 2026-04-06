@@ -4,6 +4,7 @@ from src.models.schemas import (
     GdeltDetailResponse,
     GdeltSignalRefreshResponse,
     LatestSignalsResponse,
+    NotamDetailResponse,
     OpenSkyAnomaliesResponse,
     OpenSkySignalRefreshResponse,
     SignalSourceRefreshRequest,
@@ -12,6 +13,7 @@ from src.models.schemas import (
 from src.services.seed_data import (
     get_latest_signals,
     get_latest_gdelt_detail,
+    get_latest_notam_detail,
     get_latest_opensky_anomalies,
     refresh_gdelt_signal,
     refresh_opensky_signal,
@@ -86,6 +88,11 @@ def refresh_opensky_signal_feature() -> OpenSkySignalRefreshResponse:
 @router.get("/sources/gdelt/detail", response_model=GdeltDetailResponse)
 def get_gdelt_detail() -> GdeltDetailResponse:
     return get_latest_gdelt_detail()
+
+
+@router.get("/sources/notam-feed/detail", response_model=NotamDetailResponse)
+def get_notam_detail() -> NotamDetailResponse:
+    return get_latest_notam_detail()
 
 
 @router.post(

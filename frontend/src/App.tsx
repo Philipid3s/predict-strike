@@ -10,6 +10,7 @@ import {
   getLatestPizzaIndex,
   getLatestSignals,
   getMarketOpportunities,
+  getNotamDetail,
   getOpenSkyAnomalies,
   refreshGdeltSignal,
   refreshGdeltSource,
@@ -28,6 +29,7 @@ import type {
   GdeltDetailResponse,
   GdeltSignalAssessment,
   MarketOpportunity,
+  NotamDetailResponse,
   OpenSkyAnomaliesResponse,
   OpenSkySignalAssessment,
   PizzaIndexSnapshotResponse,
@@ -195,6 +197,19 @@ function formatOpenSkyReason(reason: string) {
   return titleCase(reason.replace(/_/g, ' '));
 }
 
+function formatNotamWindow(start: string | null, end: string | null) {
+  if (start && end) {
+    return `${formatDateTime(start)} to ${formatDateTime(end)}`;
+  }
+  if (start) {
+    return `Starts ${formatDateTime(start)}`;
+  }
+  if (end) {
+    return `Ends ${formatDateTime(end)}`;
+  }
+  return 'Window unavailable';
+}
+
 function hasCoordinates(latitude: number | null, longitude: number | null) {
   return latitude !== null && longitude !== null;
 }
@@ -221,8 +236,10 @@ export default function App() {
   const [dashboard, setDashboard] = useState<DashboardState>(EMPTY_STATE);
   const [pizzaIndex, setPizzaIndex] = useState<PizzaIndexSnapshotResponse | null>(null);
   const [gdeltDetail, setGdeltDetail] = useState<GdeltDetailResponse | null>(null);
+  const [notamDetail, setNotamDetail] = useState<NotamDetailResponse | null>(null);
   const [openSkyAnomalies, setOpenSkyAnomalies] = useState<OpenSkyAnomaliesResponse | null>(null);
   const [gdeltError, setGdeltError] = useState<string | null>(null);
+  const [notamError, setNotamError] = useState<string | null>(null);
   const [pizzaError, setPizzaError] = useState<string | null>(null);
   const [openSkyError, setOpenSkyError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -312,6 +329,18 @@ export default function App() {
     }
   }, []);
 
+  const loadNotamDetail = useCallback(async () => {
+    setNotamError(null);
+    try {
+      const latest = await getNotamDetail();
+      setNotamDetail(latest);
+      return latest;
+    } catch (loadError) {
+      setNotamError(loadError instanceof Error ? loadError.message : 'Failed to load NOTAM detail.');
+      throw loadError;
+    }
+  }, []);
+
   const applyOpenSkyAnomalies = useCallback((latest: OpenSkyAnomaliesResponse) => {
     setOpenSkyAnomalies(latest);
     setSelectedOpenSkyAnomalyId(null);
@@ -348,13 +377,16 @@ export default function App() {
     if (route.page === 'source' && route.sourceId === 'gdelt' && !gdeltDetail) {
       void loadGdeltDetail();
     }
+    if (route.page === 'source' && route.sourceId === 'notam-feed' && !notamDetail) {
+      void loadNotamDetail();
+    }
     if (route.page === 'source' && route.sourceId === 'pizza-index-activity' && !pizzaIndex) {
       void loadPizzaIndex();
     }
     if (route.page === 'source' && route.sourceId === 'opensky-network' && !openSkyAnomalies) {
       void loadOpenSkyAnomalies();
     }
-  }, [gdeltDetail, loadGdeltDetail, loadOpenSkyAnomalies, loadPizzaIndex, openSkyAnomalies, pizzaIndex, route.page, route.sourceId]);
+  }, [gdeltDetail, loadGdeltDetail, loadNotamDetail, loadOpenSkyAnomalies, loadPizzaIndex, notamDetail, openSkyAnomalies, pizzaIndex, route.page, route.sourceId]);
 
   useEffect(() => {
     if (route.page !== 'source' || route.sourceId !== 'opensky-network' || !openSkyAnomalies) {
@@ -468,6 +500,7 @@ export default function App() {
     setRefreshingSourceName(sourceName);
     setError(null);
     setGdeltError(null);
+    setNotamError(null);
     setOpenSkyError(null);
     setPizzaError(null);
     setActionMessage(null);
@@ -486,6 +519,8 @@ export default function App() {
       } else if (sourceName === 'NOTAM Feed') {
         const refreshed = await refreshNotamSource();
         await updateDashboardSnapshotRisk(refreshed.snapshot);
+        const latestDetail = await getNotamDetail();
+        setNotamDetail(latestDetail);
       } else if (sourceName === PIZZA_INDEX_SOURCE_NAME) {
         const refreshed = await refreshPizzaIndex();
         setPizzaIndex(refreshed);
@@ -1496,6 +1531,187 @@ export default function App() {
     );
   };
 
+  const renderNotamSourceDetail = (sourceDefinition: SourceDefinition, source: SignalSource | null) => {
+    const featureValue =
+      (dashboard.signals ? dashboard.signals.features.notam_spike : null) ?? notamDetail?.notam_spike ?? null;
+    const topClassifications = notamDetail?.classification_breakdown ?? [];
+    const topLocations = notamDetail?.location_breakdown ?? [];
+    const representativeNotices = notamDetail?.representative_notices ?? [];
+
+    return (
+      <>
+        <header className="detail-hero">
+          <div>
+            <p className="eyebrow">Source Detail</p>
+            <h1>{sourceDefinition.name}</h1>
+            <p className="hero__subtitle">{sourceDefinition.detail}</p>
+          </div>
+          <div className="hero__actions">
+            <button className="button button--secondary" onClick={() => navigate({ page: 'dashboard' })}>
+              Back to Dashboard
+            </button>
+            <button
+              className="button"
+              onClick={() => void handleSourceDetailRefresh(sourceDefinition.name)}
+              disabled={refreshingSourceName === sourceDefinition.name}
+            >
+              {refreshingSourceName === sourceDefinition.name ? 'Refreshing...' : 'Refresh Source'}
+            </button>
+          </div>
+        </header>
+
+        {error ? (
+          <div className="notice notice--error" role="alert">
+            {error}
+          </div>
+        ) : null}
+
+        {notamError ? (
+          <div className="notice notice--error" role="alert">
+            {notamError}
+          </div>
+        ) : null}
+
+        {actionMessage ? <div className="notice notice--success">{actionMessage}</div> : null}
+
+        <section className="metric-grid" aria-label={`${sourceDefinition.name} detail`}>
+          <MetricCard
+            label="Status"
+            value={source ? titleCase(source.status) : 'Unknown'}
+            detail={source ? `Mode ${formatSourceMode(source.mode)}` : 'Awaiting source snapshot'}
+            accent={
+              source ? <StatusBadge tone={getSourceTone(source.status)}>{titleCase(source.status)}</StatusBadge> : undefined
+            }
+          />
+          <MetricCard
+            label="Signal Feature"
+            value={featureValue === null ? 'Unavailable' : formatPercent(featureValue)}
+            detail={
+              notamDetail
+                ? `${notamDetail.alert_notice_count} alert-weighted and ${notamDetail.restricted_notice_count} restricted notices are currently contributing.`
+                : 'Normalized NOTAM spike from the latest stored notice set.'
+            }
+            action={
+              <button
+                className="icon-help-button"
+                onClick={() => setFeatureLogicSourceId('notam-feed')}
+                aria-label="Open NOTAM signal feature logic"
+                title="NOTAM Signal Feature Logic"
+              >
+                ?
+              </button>
+            }
+          />
+          <MetricCard
+            label="Current Notices"
+            value={notamDetail ? `${notamDetail.notice_count}` : 'Unavailable'}
+            detail={
+              notamDetail
+                ? `${notamDetail.alert_notice_count} alert-flagged, ${notamDetail.restricted_notice_count} restricted-language notices`
+                : 'Loading latest NOTAM count'
+            }
+          />
+          <MetricCard
+            label="Effective Window"
+            value={
+              notamDetail?.effective_window_end
+                ? formatDateTime(notamDetail.effective_window_end)
+                : 'Unavailable'
+            }
+            detail={
+              notamDetail
+                ? formatNotamWindow(notamDetail.effective_window_start, notamDetail.effective_window_end)
+                : `Snapshot captured ${formatDateTime(dashboard.signals?.generated_at)}`
+            }
+          />
+        </section>
+
+        <div className="dashboard-grid dashboard-grid--detail">
+          <SectionCard title="Operational Summary" subtitle={`Latest stored NOTAM observation ${formatDateTime(notamDetail?.generated_at ?? source?.last_checked_at)}`}>
+            {!notamDetail ? (
+              <p className="empty-state">Loading current NOTAM detail...</p>
+            ) : (
+              <div className="detail-stack">
+                <p>{notamDetail.summary}</p>
+                <p>Production refresh currently runs checklist-first to stay inside the FAA API request budget.</p>
+                <p>
+                  Latest upstream update:{' '}
+                  {notamDetail.latest_updated_at ? formatDateTime(notamDetail.latest_updated_at) : 'Unavailable'}
+                </p>
+                {notamDetail.collector_fallback_reason ? (
+                  <p>Collector fallback: {notamDetail.collector_fallback_reason}</p>
+                ) : null}
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Classification Breakdown" subtitle="Current NOTAM mix by classification">
+            {!notamDetail ? (
+              <p className="empty-state">Loading classification distribution...</p>
+            ) : topClassifications.length === 0 ? (
+              <p className="empty-state">No classification breakdown is available for the current snapshot.</p>
+            ) : (
+              <div className="feature-grid">
+                {topClassifications.map((item) => (
+                  <div key={item.label} className="feature-tile feature-tile--active">
+                    <span>{item.label}</span>
+                    <strong>{item.count}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Top Locations" subtitle="Highest-volume locations in the current feed">
+            {!notamDetail ? (
+              <p className="empty-state">Loading location concentration...</p>
+            ) : topLocations.length === 0 ? (
+              <p className="empty-state">No location concentration is available for the current snapshot.</p>
+            ) : (
+              <div className="feature-grid">
+                {topLocations.map((item) => (
+                  <div key={item.label} className="feature-tile">
+                    <span>{item.label}</span>
+                    <strong>{item.count}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard title="Representative Notices" subtitle="Sample notices from the live NOTAM set">
+            {!notamDetail ? (
+              <p className="empty-state">Loading representative notices...</p>
+            ) : representativeNotices.length === 0 ? (
+              <p className="empty-state">No representative notices are available for the current snapshot.</p>
+            ) : (
+              <div className="notam-notice-list">
+                {representativeNotices.map((notice) => (
+                  <article key={notice.notice_id} className="notam-notice-card">
+                    <div className="notam-notice-card__header">
+                      <div>
+                        <strong>{notice.notice_id}</strong>
+                        <p>{notice.location ?? 'Unknown location'}{notice.classification ? ` · ${notice.classification}` : ''}</p>
+                      </div>
+                      <div className="notam-notice-card__flags">
+                        {notice.is_alert ? <StatusBadge tone="warning">Alert-weighted</StatusBadge> : null}
+                        {notice.is_restricted ? <StatusBadge tone="danger">Restricted</StatusBadge> : null}
+                      </div>
+                    </div>
+                    <p>{notice.text}</p>
+                    <p className="notam-notice-card__window">
+                      {formatNotamWindow(notice.effective_start, notice.effective_end)}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        </div>
+      </>
+    );
+  };
+
   const renderOpenSkySourceDetail = (sourceDefinition: SourceDefinition, source: SignalSource | null) => {
     const openSkySignalAssessment: OpenSkySignalAssessment | null = openSkyAnomalies?.assessment ?? null;
     const featureValue =
@@ -1767,6 +1983,10 @@ export default function App() {
 
     if (currentSourceDefinition.id === 'gdelt') {
       return renderGdeltDetail(currentSourceDefinition, currentSignalSource);
+    }
+
+    if (currentSourceDefinition.id === 'notam-feed') {
+      return renderNotamSourceDetail(currentSourceDefinition, currentSignalSource);
     }
 
     if (currentSourceDefinition.hasDedicatedDetailData) {

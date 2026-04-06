@@ -25,7 +25,7 @@ BOOTSTRAP_GDELT_RESPONSE: dict[str, Any] = {
             "title": "Missile alert follows sudden Black Sea mobilization",
             "body": "Officials report military mobilization and expanding conflict risk across the Black Sea corridor.",
             "source": "Example Wire",
-            "published_at": "2026-03-07T08:20:00Z",
+            "published_at": "2026-04-05T08:20:00Z",
             "url": "https://examplewire.test/black-sea-mobilization",
         },
         {
@@ -33,7 +33,7 @@ BOOTSTRAP_GDELT_RESPONSE: dict[str, Any] = {
             "title": "Eastern Mediterranean airspace restrictions tighten after strike warnings",
             "body": "Analysts cite possible strike scenarios and increasing military posture across the Eastern Mediterranean.",
             "source": "Open Source Monitor",
-            "published_at": "2026-03-07T08:35:00Z",
+            "published_at": "2026-04-05T08:35:00Z",
             "url": "https://osm.test/eastern-med-airspace",
         },
         {
@@ -41,7 +41,7 @@ BOOTSTRAP_GDELT_RESPONSE: dict[str, Any] = {
             "title": "Troops repositioned near Persian Gulf logistics hubs",
             "body": "Local media discuss conflict escalation, logistics, and security operations around the Persian Gulf.",
             "source": "Regional Desk",
-            "published_at": "2026-03-07T08:50:00Z",
+            "published_at": "2026-04-05T08:50:00Z",
             "url": "https://regionaldesk.test/persian-gulf-logistics",
         },
         {
@@ -49,7 +49,7 @@ BOOTSTRAP_GDELT_RESPONSE: dict[str, Any] = {
             "title": "Commodity markets react to diplomatic talks",
             "body": "Investors remain cautious as negotiators continue meetings.",
             "source": "Market Desk",
-            "published_at": "2026-03-07T09:00:00Z",
+            "published_at": "2026-04-05T09:00:00Z",
             "url": "https://marketdesk.test/diplomatic-talks",
         },
     ]

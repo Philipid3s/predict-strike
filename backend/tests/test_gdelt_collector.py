@@ -1,4 +1,9 @@
 import unittest
+from pathlib import Path
+import sys
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BACKEND_ROOT))
 
 from src.collectors.gdelt import (
     BOOTSTRAP_GDELT_RESPONSE,
@@ -135,14 +140,14 @@ class GdeltCollectorTests(unittest.TestCase):
                     "id": "generic-1",
                     "title": "Commodity markets react to diplomatic talks",
                     "body": "Investors remain cautious.",
-                    "published_at": "2026-03-07T09:00:00Z",
+                    "published_at": "2026-04-05T09:00:00Z",
                     "url": "https://marketdesk.test/diplomatic-talks",
                 },
                 {
                     "id": "signal-1",
                     "title": "Pentagon warns of strike options as NATO aircraft reposition",
                     "body": "US military planners and NATO officials discuss possible attack planning in the Eastern Mediterranean.",
-                    "published_at": "2026-03-07T10:00:00Z",
+                    "published_at": "2026-04-05T10:00:00Z",
                     "url": "https://examplewire.test/nato-strike-options",
                 },
             ]
@@ -162,13 +167,13 @@ class GdeltCollectorTests(unittest.TestCase):
                 {
                     "id": "recent-1",
                     "title": "Pentagon discusses strike options",
-                    "published_at": "2026-03-07T10:00:00Z",
+                    "published_at": "2026-04-05T10:00:00Z",
                     "url": "https://examplewire.test/recent",
                 },
                 {
                     "id": "stale-1",
                     "title": "Old NATO warning recap",
-                    "published_at": "2026-02-20T10:00:00Z",
+                    "published_at": "2026-03-20T10:00:00Z",
                     "url": "https://examplewire.test/stale",
                 },
             ]
