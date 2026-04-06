@@ -59,6 +59,23 @@ export interface GdeltSignalRefreshResponse {
   assessment: GdeltSignalAssessment;
 }
 
+export interface NotamSignalAssessment {
+  status: 'ready' | 'disabled' | 'error';
+  prompt_version: string;
+  probability_percent: number | null;
+  target_region: string | null;
+  target_country: string | null;
+  summary: string;
+  assessed_notice_count: number;
+  freshness_score: number;
+}
+
+export interface NotamSignalRefreshResponse {
+  source: SignalSource;
+  snapshot: SignalSnapshot;
+  assessment: NotamSignalAssessment;
+}
+
 export interface PizzaIndexQualitySummary {
   full_count: number;
   partial_count: number;
@@ -152,11 +169,16 @@ export interface GdeltDetailResponse {
 export interface NotamRankedItem {
   label: string;
   count: number;
+  fir_name?: string | null;
+  country_name?: string | null;
 }
 
 export interface NotamNoticeSummary {
   notice_id: string;
   location: string | null;
+  icao_code?: string | null;
+  fir_name?: string | null;
+  country_name?: string | null;
   classification: string | null;
   text: string;
   effective_start: string | null;
@@ -179,6 +201,7 @@ export interface NotamDetailResponse {
   classification_breakdown: NotamRankedItem[];
   location_breakdown: NotamRankedItem[];
   representative_notices: NotamNoticeSummary[];
+  assessment?: NotamSignalAssessment;
   collector_fallback_reason: string | null;
 }
 

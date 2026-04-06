@@ -6,6 +6,7 @@ import type {
   GdeltSignalRefreshResponse,
   MarketOpportunitiesResponse,
   NotamDetailResponse,
+  NotamSignalRefreshResponse,
   OpenSkyAnomaliesResponse,
   OpenSkySignalRefreshResponse,
   PizzaIndexSnapshotResponse,
@@ -83,6 +84,12 @@ export function refreshNotamSource(): Promise<SignalSourceRefreshResponse> {
 
 export function getNotamDetail(): Promise<NotamDetailResponse> {
   return request<NotamDetailResponse>('/api/v1/signals/sources/notam-feed/detail');
+}
+
+export function refreshNotamSignal(): Promise<NotamSignalRefreshResponse> {
+  return request<NotamSignalRefreshResponse>('/api/v1/signals/sources/notam-feed/refresh-signal', {
+    method: 'POST',
+  });
 }
 
 export function refreshGdeltSource(): Promise<SignalSourceRefreshResponse> {

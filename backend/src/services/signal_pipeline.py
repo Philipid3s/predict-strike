@@ -27,6 +27,7 @@ from src.collectors.opensky import (
     dominant_suspicious_region_name,
     parse_states,
 )
+from src.config.notam_location_registry import resolve_notam_location_context
 from src.config.settings import get_settings
 from src.models.schemas import (
     FeatureSet,
@@ -40,6 +41,8 @@ from src.models.schemas import (
     NotamCountBreakdown,
     NotamDetailResponse,
     NotamNoticeSummary,
+    NotamSignalAssessment,
+    NotamSignalRefreshResponse,
     OpenSkyAnomaliesResponse,
     OpenSkyAnomaly,
     OpenSkySignalRefreshResponse,
@@ -58,6 +61,12 @@ from src.services.gdelt_assessment import (
     is_action_indicative_article,
     is_us_nato_actor_article,
     probability_to_signal_feature as gdelt_probability_to_signal_feature,
+)
+from src.services.notam_assessment import (
+    NotamAssessmentConfig,
+    NotamStrikeAssessmentService,
+    derive_region_focus_from_assessment as derive_notam_region_focus_from_assessment,
+    probability_to_signal_feature as notam_probability_to_signal_feature,
 )
 from src.services.opensky_assessment import (
     OpenSkyAssessmentConfig,
@@ -89,6 +98,138 @@ DASHBOARD_SOURCE_NAMES = (
 )
 
 SIGNAL_REFRESH_SOURCE_NAMES = {"OpenSky Network", "GDELT"}
+NOTAM_SIGNAL_VERSION = "notam-strike-v1"
+
+NOTAM_STRIKE_KEYWORDS = (
+    "AIRSPACE RESTRICTION",
+    "RESTRICTED AIRSPACE",
+    "MILITARY",
+    "MISSILE",
+    "EXERCISE",
+    "LIVE FIRE",
+    "TFR",
+    "DRONE",
+    "UAS",
+    "WEAPON",
+    "FIRING",
+    "SECURITY",
+    "CLOSURE",
+    "AIR DEFENSE",
+    "TEST",
+)
+
+NOTAM_URGENT_KEYWORDS = (
+    "IMMEDIATE",
+    "URGENT",
+    "UNTIL FURTHER NOTICE",
+    "NOW",
+    "ACTIVE",
+)
+
+NOTAM_EXACT_LOCATION_CONTEXT: dict[str, tuple[str, str]] = {
+    "KZLC": ("Salt Lake City ARTCC / FIR", "United States"),
+    "EGTT": ("London FIR", "United Kingdom"),
+    "CYOO": ("Toronto FIR", "Canada"),
+    "VOBZ": ("Chennai FIR", "India"),
+    "LLBG": ("Tel Aviv FIR", "Israel"),
+    "RJTT": ("Tokyo FIR", "Japan"),
+    "OIYY": ("Tehran FIR", "Iran"),
+    "KATL": ("Atlanta ARTCC / FIR", "United States"),
+    "KADW": ("Washington ARTCC / FIR", "United States"),
+    "KPAM": ("Anchorage Oceanic / FIR", "United States"),
+}
+
+NOTAM_PREFIX_LOCATION_CONTEXT: tuple[tuple[str, str, str], ...] = (
+    ("K", "United States domestic ARTCC / FIR system", "United States"),
+    ("P", "United States Pacific ARTCC / FIR system", "United States"),
+    ("C", "Canadian FIR system", "Canada"),
+    ("EG", "United Kingdom FIR system", "United Kingdom"),
+    ("ED", "German FIR system", "Germany"),
+    ("ET", "German FIR system", "Germany"),
+    ("LF", "French FIR system", "France"),
+    ("LE", "Spanish FIR system", "Spain"),
+    ("LI", "Italian FIR system", "Italy"),
+    ("LR", "Romanian FIR system", "Romania"),
+    ("LL", "Israeli FIR system", "Israel"),
+    ("OI", "Iranian FIR system", "Iran"),
+    ("RJ", "Japanese FIR system", "Japan"),
+    ("RK", "South Korean FIR system", "South Korea"),
+    ("VO", "Indian FIR system", "India"),
+)
+
+NOTAM_LOCATION_HINTS: tuple[tuple[str, str, str], ...] = (
+    ("EG", "United Kingdom", "Europe"),
+    ("ED", "Germany", "Europe"),
+    ("EK", "Denmark", "Europe"),
+    ("EN", "Norway", "Europe"),
+    ("ES", "Sweden", "Europe"),
+    ("ET", "Germany", "Europe"),
+    ("LF", "France", "Europe"),
+    ("LE", "Spain", "Europe"),
+    ("LI", "Italy", "Europe"),
+    ("LK", "Czech Republic", "Europe"),
+    ("LH", "Hungary", "Europe"),
+    ("LR", "Romania", "Europe"),
+    ("LZ", "Slovakia", "Europe"),
+    ("LL", "Israel", "Middle East"),
+    ("OJ", "Jordan", "Middle East"),
+    ("OK", "Kuwait", "Middle East"),
+    ("OT", "Qatar", "Middle East"),
+    ("OE", "Saudi Arabia", "Middle East"),
+    ("OM", "United Arab Emirates", "Middle East"),
+    ("OR", "Iraq", "Middle East"),
+    ("OI", "Iran", "Middle East"),
+    ("K", "United States", "North America"),
+    ("P", "United States", "North America"),
+    ("C", "Canada", "North America"),
+    ("RJ", "Japan", "Asia"),
+    ("RK", "South Korea", "Asia"),
+    ("YM", "Australia", "Oceania"),
+)
+
+NOTAM_TEXT_REGION_HINTS: tuple[tuple[str, str], ...] = (
+    ("BLACK SEA", "Black Sea"),
+    ("EASTERN MEDITERRANEAN", "Eastern Mediterranean"),
+    ("MEDITERRANEAN", "Mediterranean"),
+    ("PERSIAN GULF", "Persian Gulf"),
+    ("RED SEA", "Red Sea"),
+    ("BALTIC", "Baltic region"),
+    ("KOREAN PENINSULA", "Korean Peninsula"),
+    ("TAIWAN STRAIT", "Taiwan Strait"),
+    ("SOUTH CHINA SEA", "South China Sea"),
+    ("HORN OF AFRICA", "Horn of Africa"),
+    ("SAHEL", "Sahel"),
+    ("UKRAINE", "Ukraine / Western Russia"),
+    ("WESTERN RUSSIA", "Ukraine / Western Russia"),
+)
+
+COUNTRY_REGION_HINTS: dict[str, str] = {
+    "United States": "North America",
+    "Canada": "North America",
+    "United Kingdom": "Europe",
+    "Germany": "Europe",
+    "Denmark": "Europe",
+    "Norway": "Europe",
+    "Sweden": "Europe",
+    "France": "Europe",
+    "Spain": "Europe",
+    "Italy": "Europe",
+    "Czech Republic": "Europe",
+    "Hungary": "Europe",
+    "Romania": "Europe",
+    "Slovakia": "Europe",
+    "Israel": "Middle East",
+    "Jordan": "Middle East",
+    "Kuwait": "Middle East",
+    "Qatar": "Middle East",
+    "Saudi Arabia": "Middle East",
+    "United Arab Emirates": "Middle East",
+    "Iraq": "Middle East",
+    "Iran": "Middle East",
+    "Japan": "Asia",
+    "South Korea": "Asia",
+    "Australia": "Oceania",
+}
 
 
 @dataclass(frozen=True)
@@ -210,6 +351,258 @@ def _build_opensky_manual_assessment() -> OpenSkyStrikeAssessment:
             "AI assessment has not been run for the current OpenSky anomaly snapshot. "
             "Use Refresh Signal to generate it manually."
         ),
+    )
+
+
+def _notam_payload_with_assessment(
+    payload: dict[str, Any], assessment: NotamSignalAssessment | None
+) -> dict[str, Any]:
+    stored_payload = dict(payload)
+    if assessment is None:
+        stored_payload.pop("_assessment", None)
+    else:
+        stored_payload["_assessment"] = assessment.model_dump(mode="json")
+    return stored_payload
+
+
+def _notam_probability_to_signal_feature(assessment: NotamSignalAssessment) -> float:
+    if assessment.status != "ready" or assessment.probability_percent is None:
+        return 0.0
+    return round(assessment.probability_percent / 100.0, 4)
+
+
+def _derive_notam_region_focus_from_assessment(
+    assessment: NotamSignalAssessment, fallback: str
+) -> str:
+    if assessment.status != "ready":
+        return fallback
+    if assessment.target_country:
+        return assessment.target_country
+    if assessment.target_region:
+        return assessment.target_region
+    return fallback
+
+
+def _normalize_notam_location(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = "".join(character for character in value.upper() if character.isalnum())
+    return normalized or None
+
+
+def _infer_notam_location_hint(location: str | None) -> tuple[str | None, str | None]:
+    normalized_location = _normalize_notam_location(location)
+    if normalized_location is None:
+        return None, None
+
+    for prefix, country, region in NOTAM_LOCATION_HINTS:
+        if normalized_location.startswith(prefix):
+            return country, region
+    return None, None
+
+
+def _notam_notice_haystack(notice: NotamNotice) -> str:
+    return f"{notice.classification or ''} {notice.location or ''} {notice.text}".upper()
+
+
+def _notam_effective_window_hours(notice: NotamNotice) -> float | None:
+    start = _coerce_datetime(notice.effective_start)
+    end = _coerce_datetime(notice.effective_end)
+    if start is None or end is None:
+        return None
+    delta = end - start
+    return max(delta.total_seconds() / 3600.0, 0.0)
+
+
+def _notam_location_country_counts(
+    notices: list[NotamNotice],
+) -> tuple[dict[str, int], dict[str, int]]:
+    country_counts: dict[str, int] = Counter()
+    region_counts: dict[str, int] = Counter()
+
+    for notice in notices:
+        country, region = _infer_notam_location_hint(notice.location)
+        if country is not None:
+            country_counts[country] += 1
+            if region is None:
+                region = COUNTRY_REGION_HINTS.get(country)
+        explicit_region = _notam_explicit_region_hint(notice)
+        if explicit_region is not None:
+            region_counts[explicit_region] += 1
+        elif region is not None:
+            region_counts[region] += 1
+
+    return dict(country_counts), dict(region_counts)
+
+
+def _notam_explicit_region_hint(notice: NotamNotice) -> str | None:
+    haystack = _notam_notice_haystack(notice)
+    for keyword, region in NOTAM_TEXT_REGION_HINTS:
+        if keyword in haystack:
+            return region
+    return None
+
+
+def _notam_notice_score(notice: NotamNotice, location_counts: dict[str, int]) -> float:
+    haystack = _notam_notice_haystack(notice)
+    score = 0.06
+
+    if _notam_is_alert(notice):
+        score += 0.18
+    if _notam_is_restricted(notice):
+        score += 0.10
+    if any(keyword in haystack for keyword in NOTAM_STRIKE_KEYWORDS):
+        score += 0.16
+    if any(keyword in haystack for keyword in NOTAM_URGENT_KEYWORDS):
+        score += 0.05
+
+    window_hours = _notam_effective_window_hours(notice)
+    if window_hours is not None:
+        if window_hours <= 6:
+            score += 0.18
+        elif window_hours <= 24:
+            score += 0.14
+        elif window_hours <= 72:
+            score += 0.08
+
+    location = notice.location
+    if location is not None:
+        repeated_location_count = location_counts.get(location.upper(), 0)
+        if repeated_location_count > 1:
+            score += min((repeated_location_count - 1) * 0.05, 0.15)
+
+    if _infer_notam_location_hint(notice.location)[0] is not None:
+        score += 0.04
+
+    return min(score, 1.0)
+
+
+def _build_notam_signal_assessment(notices: list[NotamNotice]) -> NotamSignalAssessment:
+    if not notices:
+        return NotamSignalAssessment(
+            status="disabled",
+            prompt_version=NOTAM_SIGNAL_VERSION,
+            probability_percent=None,
+            target_region=None,
+            target_country=None,
+            summary=(
+                "No parseable NOTAM notices were available in the stored snapshot. "
+                "Refresh the source first, then run Refresh Signal."
+            ),
+            assessed_notice_count=0,
+            freshness_score=0.0,
+        )
+
+    location_counts = Counter(
+        notice.location.upper()
+        for notice in notices
+        if isinstance(notice.location, str) and notice.location.strip()
+    )
+    country_counts, region_counts = _notam_location_country_counts(notices)
+    notice_scores = [_notam_notice_score(notice, dict(location_counts)) for notice in notices]
+    ranked_scores = sorted(notice_scores, reverse=True)
+    top_scores = ranked_scores[:3]
+    top_average = sum(top_scores) / len(top_scores) if top_scores else 0.0
+
+    alert_count = sum(1 for notice in notices if _notam_is_alert(notice))
+    restricted_count = sum(1 for notice in notices if _notam_is_restricted(notice))
+    short_window_count = sum(
+        1
+        for notice in notices
+        if (window_hours := _notam_effective_window_hours(notice)) is not None and window_hours <= 24
+    )
+    active_window_count = sum(
+        1
+        for notice in notices
+        if (window_hours := _notam_effective_window_hours(notice)) is not None and window_hours <= 72
+    )
+    location_concentration = 0.0
+    if location_counts:
+        location_concentration = min((max(location_counts.values()) - 1) * 0.12, 0.24)
+
+    country_name = None
+    country_weight = 0
+    if country_counts:
+        country_name = max(country_counts.items(), key=lambda item: (item[1], item[0]))[0]
+        country_weight = country_counts[country_name]
+
+    region_name = None
+    if region_counts:
+        region_name = max(region_counts.items(), key=lambda item: (item[1], item[0]))[0]
+
+    country_confidence = 0.0
+    if country_name is not None:
+        country_confidence = min(country_weight / max(len(notices), 1), 1.0)
+        if country_confidence < 0.34 and region_name is None:
+            country_name = None
+
+    target_region = region_name
+    target_country = country_name
+    if target_country is not None:
+        target_region = COUNTRY_REGION_HINTS.get(target_country, target_region)
+
+    explicit_region_bonus = 0.10 if target_region is not None else 0.0
+    country_bonus = 0.10 if target_country is not None else 0.0
+    urgency_bonus = 0.0
+    if active_window_count:
+        urgency_bonus += min(active_window_count / len(notices), 1.0) * 0.08
+    if short_window_count:
+        urgency_bonus += min(short_window_count / len(notices), 1.0) * 0.08
+
+    probability = (
+        0.42 * top_average
+        + 0.18 * (alert_count / len(notices))
+        + 0.10 * (restricted_count / len(notices))
+        + 0.12 * location_concentration
+        + explicit_region_bonus
+        + country_bonus
+        + urgency_bonus
+    )
+    probability = min(max(probability, 0.0), 0.98)
+    probability_percent = int(round(probability * 100))
+
+    strongest_location = None
+    if location_counts:
+        strongest_location = max(location_counts.items(), key=lambda item: (item[1], item[0]))[0]
+    strongest_score = max(notice_scores) if notice_scores else 0.0
+    region_fragment = (
+        f" clustered around {target_country}" if target_country is not None else (
+            f" clustered around {target_region}" if target_region is not None else ""
+        )
+    )
+    if strongest_location is not None:
+        location_fragment = f" Most concentrated location: {strongest_location}."
+    else:
+        location_fragment = ""
+
+    summary = (
+        f"Heuristic NOTAM refresh estimates a {probability_percent}% strike-risk probability from "
+        f"{len(notices)} notices. {alert_count} notices are alert-level and {restricted_count} are restricted."
+        f"{region_fragment}{location_fragment} Strongest notice score: {round(strongest_score, 2)}."
+    )
+
+    freshness_score = 0.0
+    if notices:
+        freshness_score = round(
+            min(
+                1.0,
+                (
+                    min(active_window_count / len(notices), 1.0) * 0.6
+                    + min(short_window_count / len(notices), 1.0) * 0.4
+                ),
+            ),
+            4,
+        )
+
+    return NotamSignalAssessment(
+        status="ready",
+        prompt_version=NOTAM_SIGNAL_VERSION,
+        probability_percent=probability_percent,
+        target_region=target_region,
+        target_country=target_country,
+        summary=summary,
+        assessed_notice_count=len(notices),
+        freshness_score=freshness_score,
     )
 
 
@@ -680,6 +1073,69 @@ def refresh_gdelt_signal() -> GdeltSignalRefreshResponse:
     return _refresh_gdelt_signal_from_snapshot(store, latest_snapshot)
 
 
+def _refresh_notam_signal_from_snapshot(
+    store: SignalStore, latest_snapshot: LatestSignalsResponse
+) -> NotamSignalRefreshResponse:
+    latest_snapshot, latest = _ensure_latest_source_payload(store, latest_snapshot, "NOTAM Feed")
+
+    collected_at = datetime.fromisoformat(latest["collected_at"])
+    status = latest["status"]
+    source_payload = dict(latest["payload"])
+    notices = parse_notices(source_payload)
+    settings = get_settings()
+    assessment = NotamStrikeAssessmentService(
+        NotamAssessmentConfig(
+            api_url=settings.notam_ai_api_url,
+            api_key=settings.notam_ai_api_key,
+            model=settings.notam_ai_model,
+            timeout_seconds=settings.notam_ai_timeout_seconds,
+        )
+    ).assess_notices(notices)
+
+    store.save_source_observation(
+        source_name="NOTAM Feed",
+        collected_at=collected_at,
+        status=status,
+        payload=_notam_payload_with_assessment(source_payload, assessment),
+    )
+    refreshed_source = SignalSource(
+        name="NOTAM Feed",
+        status=status,
+        mode=_mode_from_source_status(status),
+        last_checked_at=collected_at,
+    )
+    persisted_snapshot = _save_snapshot_projection(
+        store,
+        latest_snapshot,
+        source=refreshed_source,
+        feature_updates={
+            "notam_spike": notam_probability_to_signal_feature(assessment),
+        },
+        region_focus=derive_notam_region_focus_from_assessment(
+            assessment,
+            fallback=latest_snapshot.region_focus,
+        ),
+        generated_at=_utc_now(),
+    )
+    refreshed_source = next(
+        source for source in persisted_snapshot.sources if source.name == "NOTAM Feed"
+    )
+    return NotamSignalRefreshResponse(
+        source=refreshed_source,
+        snapshot=persisted_snapshot,
+        assessment=assessment,
+    )
+
+
+def refresh_notam_signal() -> NotamSignalRefreshResponse:
+    settings = get_settings()
+    store = SignalStore(settings.database_url)
+    latest_snapshot = store.get_latest_signal_snapshot()
+    if latest_snapshot is None or not _snapshot_matches_current_contract(latest_snapshot):
+        latest_snapshot = refresh_latest_snapshot()
+    return _refresh_notam_signal_from_snapshot(store, latest_snapshot)
+
+
 def _rank_counts(items: list[str], limit: int = 5) -> list[GdeltCountBreakdown]:
     counts = Counter(items)
     return [
@@ -757,6 +1213,15 @@ def _notam_is_restricted(notice: NotamNotice) -> bool:
     return any(keyword in haystack for keyword in ("RESTRICT", "TFR", "AIRSPACE RESTRICTION"))
 
 
+def _notam_is_military_relevant(notice: NotamNotice) -> bool:
+    haystack = f"{notice.classification or ''} {notice.text}".upper()
+    return (
+        _notam_is_alert(notice)
+        or _notam_is_restricted(notice)
+        or "MILITARY" in haystack
+    )
+
+
 def _notam_notice_priority(notice: NotamNotice) -> tuple[int, int, datetime]:
     start = _coerce_datetime(notice.effective_start)
     end = _coerce_datetime(notice.effective_end)
@@ -768,10 +1233,25 @@ def _notam_notice_priority(notice: NotamNotice) -> tuple[int, int, datetime]:
     )
 
 
+def _normalize_notam_location_code(location: str | None) -> str | None:
+    if not isinstance(location, str):
+        return None
+    normalized = location.strip().upper()
+    return normalized or None
+
+
+def _notam_location_context(location: str | None) -> tuple[str | None, str | None, str | None]:
+    return resolve_notam_location_context(location)
+
+
 def _notam_notice_summary(notice: NotamNotice) -> NotamNoticeSummary:
+    icao_code, fir_name, country_name = _notam_location_context(notice.location)
     return NotamNoticeSummary(
         notice_id=notice.notice_id,
         location=notice.location,
+        icao_code=icao_code,
+        fir_name=fir_name,
+        country_name=country_name,
         classification=notice.classification,
         text=notice.text,
         effective_start=_coerce_datetime(notice.effective_start),
@@ -786,6 +1266,21 @@ def _notam_count_breakdown(values: list[str]) -> list[NotamCountBreakdown]:
         NotamCountBreakdown(label=label, count=count)
         for label, count in Counter(values).most_common()
     ]
+
+
+def _notam_location_breakdown(values: list[str], limit: int = 6) -> list[NotamCountBreakdown]:
+    breakdown: list[NotamCountBreakdown] = []
+    for label, count in Counter(values).most_common(limit):
+        _, fir_name, country_name = _notam_location_context(label)
+        breakdown.append(
+            NotamCountBreakdown(
+                label=label,
+                count=count,
+                fir_name=fir_name,
+                country_name=country_name,
+            )
+        )
+    return breakdown
 
 
 def _notam_fallback_reason_from_payload(payload: dict[str, Any]) -> str | None:
@@ -815,13 +1310,17 @@ def get_latest_notam_detail() -> NotamDetailResponse:
         _notam_notice_summary(notice)
         for notice in sorted_notices[:5]
     ]
+    military_relevant_notices = [notice for notice in notices if _notam_is_military_relevant(notice)]
     alert_notice_count = sum(1 for notice in notices if _notam_is_alert(notice))
     restricted_notice_count = sum(1 for notice in notices if _notam_is_restricted(notice))
     classification_breakdown = _notam_count_breakdown(
         [(notice.classification.strip() if isinstance(notice.classification, str) and notice.classification.strip() else "Unspecified") for notice in notices]
     )
-    location_breakdown = _notam_count_breakdown(
-        [(notice.location.strip() if isinstance(notice.location, str) and notice.location.strip() else "Unspecified") for notice in notices]
+    location_breakdown = _notam_location_breakdown(
+        [
+            (notice.location.strip() if isinstance(notice.location, str) and notice.location.strip() else "Unspecified")
+            for notice in military_relevant_notices
+        ]
     )
     latest_updated_at = _find_latest_datetime(
         payload,

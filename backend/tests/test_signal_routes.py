@@ -12,7 +12,11 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_ROOT))
 
 from src.main import app  # noqa: E402
-from src.models.schemas import GdeltSignalAssessment, OpenSkyStrikeAssessment  # noqa: E402
+from src.models.schemas import (  # noqa: E402
+    GdeltSignalAssessment,
+    NotamSignalAssessment,
+    OpenSkyStrikeAssessment,
+)
 from src.storage.signal_store import SignalStore  # noqa: E402
 
 
@@ -336,11 +340,186 @@ class SignalRouteTests(unittest.TestCase):
         self.assertEqual(payload["collector_fallback_reason"], "rate limit")
         self.assertIn("3 notices", payload["summary"])
         self.assertEqual(payload["classification_breakdown"][0]["label"], "DOMESTIC")
-        self.assertEqual(payload["location_breakdown"][0]["label"], "KATL")
+        self.assertEqual(payload["location_breakdown"][0]["label"], "KADW")
+        self.assertEqual(payload["location_breakdown"][0]["country_name"], "United States")
+        self.assertIn("FIR", payload["location_breakdown"][0]["fir_name"])
         self.assertGreaterEqual(len(payload["representative_notices"]), 2)
         self.assertTrue(payload["representative_notices"][0]["is_alert"])
         self.assertTrue(payload["representative_notices"][0]["is_restricted"])
+        self.assertEqual(payload["representative_notices"][0]["icao_code"], "KADW")
+        self.assertEqual(payload["representative_notices"][0]["country_name"], "United States")
         self.assertTrue(payload["latest_updated_at"].startswith("2025-09-12T12:21"))
+
+    def test_notam_refresh_signal_updates_snapshot_feature_region_and_persists_assessment(self) -> None:
+        runtime_dir = Path(__file__).resolve().parent / ".runtime"
+        runtime_dir.mkdir(exist_ok=True)
+        database_path = runtime_dir / "notam-refresh-signal.db"
+        if database_path.exists():
+            database_path.unlink()
+
+        original_database_url = os.environ.get("DATABASE_URL")
+        database_url = f"sqlite:///{database_path.as_posix()}"
+        os.environ["DATABASE_URL"] = database_url
+        try:
+            client = TestClient(app)
+            latest_response = client.get("/api/v1/signals/latest")
+            latest_snapshot = latest_response.json()
+
+            store = SignalStore(database_url)
+            store.save_source_observation(
+                source_name="NOTAM Feed",
+                collected_at=datetime(2026, 4, 5, 12, 30, tzinfo=UTC),
+                status="active",
+                payload={
+                    "status": "Success",
+                    "data": {
+                        "checklist": [
+                            {
+                                "id": "notam-1",
+                                "classification": "MILITARY",
+                                "accountId": "ADW",
+                                "number": "09/193",
+                                "location": "ADW",
+                                "icaoLocation": "KADW",
+                                "lastUpdated": "2026-04-05T11:21:00Z",
+                                "effectiveStart": "202604051021",
+                                "effectiveEnd": "202604051621",
+                                "text": "AIRSPACE RESTRICTION FOR MILITARY EXERCISE",
+                            },
+                            {
+                                "id": "notam-2",
+                                "classification": "RESTRICTED AIRSPACE",
+                                "accountId": "PAMH",
+                                "number": "09/194",
+                                "location": "PAMH",
+                                "icaoLocation": "KPAM",
+                                "lastUpdated": "2026-04-05T12:21:00Z",
+                                "effectiveStart": "202604051121",
+                                "effectiveEnd": "202604051421",
+                                "text": "MISSILE ACTIVITY. TFR ACTIVE.",
+                            },
+                            {
+                                "id": "notam-3",
+                                "classification": "DOMESTIC",
+                                "accountId": "EGTT",
+                                "number": "09/195",
+                                "location": "EGTT",
+                                "icaoLocation": "EGTT",
+                                "lastUpdated": "2026-04-05T12:41:00Z",
+                                "effectiveStart": "202604051221",
+                                "effectiveEnd": "202604052221",
+                                "text": "RUNWAY MAINTENANCE",
+                            },
+                        ]
+                    },
+                },
+            )
+
+            with patch(
+                "src.services.signal_pipeline.NotamStrikeAssessmentService.assess_notices",
+                return_value=NotamSignalAssessment(
+                    status="ready",
+                    prompt_version="notam-strike-v2",
+                    probability_percent=79,
+                    target_region="North America",
+                    target_country="United States",
+                    summary="Clustered military NOTAMs indicate elevated strike risk.",
+                    assessed_notice_count=3,
+                    freshness_score=0.91,
+                ),
+            ):
+                response = client.post("/api/v1/signals/sources/notam-feed/refresh-signal")
+        finally:
+            if original_database_url is None:
+                os.environ.pop("DATABASE_URL", None)
+            else:
+                os.environ["DATABASE_URL"] = original_database_url
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["assessment"]["status"], "ready")
+        self.assertGreaterEqual(payload["assessment"]["probability_percent"], 60)
+        self.assertEqual(payload["assessment"]["target_country"], "United States")
+        self.assertEqual(payload["snapshot"]["region_focus"], "United States")
+        self.assertAlmostEqual(
+            payload["snapshot"]["features"]["notam_spike"],
+            payload["assessment"]["probability_percent"] / 100,
+        )
+
+        persisted = store.get_latest_source_observation("NOTAM Feed")
+        assert persisted is not None
+        self.assertIn("_assessment", persisted["payload"])
+        self.assertEqual(
+            persisted["payload"]["_assessment"]["target_country"],
+            "United States",
+        )
+
+    def test_notam_refresh_signal_zeroes_feature_when_ai_assessment_is_not_ready(self) -> None:
+        runtime_dir = Path(__file__).resolve().parent / ".runtime"
+        runtime_dir.mkdir(exist_ok=True)
+        database_path = runtime_dir / "notam-refresh-signal-error.db"
+        if database_path.exists():
+            database_path.unlink()
+
+        original_database_url = os.environ.get("DATABASE_URL")
+        database_url = f"sqlite:///{database_path.as_posix()}"
+        os.environ["DATABASE_URL"] = database_url
+        try:
+            client = TestClient(app)
+            latest_response = client.get("/api/v1/signals/latest")
+            latest_snapshot = latest_response.json()
+
+            store = SignalStore(database_url)
+            store.save_source_observation(
+                source_name="NOTAM Feed",
+                collected_at=datetime(2026, 4, 5, 12, 30, tzinfo=UTC),
+                status="active",
+                payload={
+                    "status": "Success",
+                    "data": {
+                        "checklist": [
+                            {
+                                "id": "notam-1",
+                                "classification": "MILITARY",
+                                "accountId": "ADW",
+                                "number": "09/193",
+                                "location": "ADW",
+                                "icaoLocation": "KADW",
+                                "lastUpdated": "2026-04-05T11:21:00Z",
+                                "effectiveStart": "202604051021",
+                                "effectiveEnd": "202604051621",
+                                "text": "AIRSPACE RESTRICTION FOR MILITARY EXERCISE",
+                            }
+                        ]
+                    },
+                },
+            )
+
+            with patch(
+                "src.services.signal_pipeline.NotamStrikeAssessmentService.assess_notices",
+                return_value=NotamSignalAssessment(
+                    status="error",
+                    prompt_version="notam-strike-v2",
+                    probability_percent=None,
+                    target_region=None,
+                    target_country=None,
+                    summary="AI response could not be parsed as the required JSON object.",
+                    assessed_notice_count=1,
+                    freshness_score=0.6,
+                ),
+            ):
+                response = client.post("/api/v1/signals/sources/notam-feed/refresh-signal")
+        finally:
+            if original_database_url is None:
+                os.environ.pop("DATABASE_URL", None)
+            else:
+                os.environ["DATABASE_URL"] = original_database_url
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["assessment"]["status"], "error")
+        self.assertEqual(payload["snapshot"]["features"]["notam_spike"], 0.0)
+        self.assertEqual(payload["snapshot"]["region_focus"], latest_snapshot["region_focus"])
 
     def test_opensky_refresh_signal_updates_snapshot_feature_and_region(self) -> None:
         runtime_dir = Path(__file__).resolve().parent / ".runtime"

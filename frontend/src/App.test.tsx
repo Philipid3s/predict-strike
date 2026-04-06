@@ -183,6 +183,10 @@ const notamDetailPayload = {
     { label: 'KZLC', count: 182 },
     { label: 'CYOO', count: 155 },
     { label: 'VOBZ', count: 149 },
+    { label: 'EGTT', count: 140 },
+    { label: 'RJTT', count: 135 },
+    { label: 'LLBG', count: 131 },
+    { label: 'OIYY', count: 129 },
   ],
   representative_notices: [
     {
@@ -206,7 +210,56 @@ const notamDetailPayload = {
       is_restricted: false,
     },
   ],
+  assessment: {
+    status: 'disabled',
+    prompt_version: 'notam-strike-v2',
+    probability_percent: null,
+    target_region: null,
+    target_country: null,
+    summary: 'AI assessment has not been run for the current NOTAM notice snapshot. Use Refresh Signal to generate it manually.',
+    assessed_notice_count: 12,
+    freshness_score: 0.44,
+  },
   collector_fallback_reason: null,
+} as const;
+
+const refreshedNotamSignalPayload = {
+  source: {
+    name: 'NOTAM Feed',
+    status: 'active',
+    mode: 'live',
+    last_checked_at: '2026-03-07T09:05:30Z',
+  },
+  snapshot: {
+    ...snapshotPayload,
+    generated_at: '2026-03-07T09:05:30Z',
+    region_focus: 'United States',
+    features: {
+      ...snapshotPayload.features,
+      notam_spike: 0.67,
+    },
+    sources: [
+      snapshotPayload.sources[0],
+      {
+        name: 'NOTAM Feed',
+        status: 'active',
+        mode: 'live',
+        last_checked_at: '2026-03-07T09:05:30Z',
+      },
+      snapshotPayload.sources[2],
+      snapshotPayload.sources[3],
+    ],
+  },
+  assessment: {
+    status: 'ready',
+    prompt_version: 'notam-strike-v2',
+    probability_percent: 67,
+    target_region: 'North America',
+    target_country: 'United States',
+    summary: 'Restricted and military-adjacent NOTAM activity is concentrated in US-controlled airspace with elevated short-window notices.',
+    assessed_notice_count: 12,
+    freshness_score: 0.73,
+  },
 } as const;
 
 const refreshedGdeltSignalPayload = {
@@ -266,6 +319,7 @@ const refreshedNotamDetailPayload = {
   restricted_notice_count: 96,
   notam_spike: 0.49,
   latest_updated_at: '2026-03-07T09:05:30Z',
+  assessment: refreshedNotamSignalPayload.assessment,
   collector_fallback_reason: null,
 } as const;
 
@@ -563,6 +617,11 @@ describe('App', () => {
           return mockResponse(refreshedNotamSourceOnlyPayload);
         }
 
+        if (url.endsWith('/api/v1/signals/sources/notam-feed/refresh-signal') && method === 'POST') {
+          currentNotamDetailPayload = refreshedNotamDetailPayload;
+          return mockResponse(refreshedNotamSignalPayload);
+        }
+
         if (url.endsWith('/api/v1/signals/sources/gdelt/refresh-source') && method === 'POST') {
           return mockResponse(refreshedGdeltSourceOnlyPayload);
         }
@@ -790,7 +849,15 @@ describe('App', () => {
     expect(screen.getByText(/Checklist-first production mode is active/i)).toBeInTheDocument();
     expect(screen.getByText(/Classification Breakdown/i)).toBeInTheDocument();
     expect(screen.getByText(/Representative Notices/i)).toBeInTheDocument();
+    expect(screen.getByText(/AI Signal Assessment/i)).toBeInTheDocument();
     expect(screen.getByText(/AIRSPACE UAS WI AN AREA DEFINED AS 3NM RADIUS OF SALT LAKE CITY CTR/i)).toBeInTheDocument();
+    expect(screen.getByText(/ICAO: KZLC/i)).toBeInTheDocument();
+    expect(screen.getByText(/FIR: Salt Lake City ARTCC \/ FIR/i)).toBeInTheDocument();
+    expect(screen.getByText(/Country: United States/i)).toBeInTheDocument();
+    expect(screen.getByText(/KZLC · United States/i)).toBeInTheDocument();
+    expect(screen.getByText(/EGTT · United Kingdom/i)).toBeInTheDocument();
+    expect(screen.queryByText(/OIYY · Iran/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Enable `NOTAM_AI_API_KEY` and `NOTAM_AI_MODEL` in `backend\/\.env` to run the NOTAM AI pass\./i)).toBeInTheDocument();
     expect(screen.getAllByText(/Alert-weighted/i).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: /Open NOTAM signal feature logic/i }));
@@ -799,6 +866,23 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: /NOTAM Spike Logic/i })).toBeInTheDocument();
     expect(screen.getByText(/normalized severity score built from the latest notice pull/i)).toBeInTheDocument();
     expect(screen.getByText(/Current NOTAM Spike/i)).toBeInTheDocument();
+  });
+
+  it('refreshes the NOTAM signal and shows the AI assessment output', async () => {
+    render(<App />);
+
+    expect(await screen.findByText(/42% Watch/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^NOTAM Feed$/i }));
+
+    expect(await screen.findByRole('heading', { name: /NOTAM Feed/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Refresh Signal/i }));
+
+    await waitFor(() => expect(screen.getByText(/NOTAM Feed signal refreshed from the latest stored source snapshot/i)).toBeInTheDocument());
+    expect(screen.getByText(/Probability: 67%/i)).toBeInTheDocument();
+    expect(screen.getByText(/Target region: North America/i)).toBeInTheDocument();
+    expect(screen.getByText(/Target country: United States/i)).toBeInTheDocument();
+    expect(screen.getByText(/Summary: Restricted and military-adjacent NOTAM activity is concentrated/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Enable `NOTAM_AI_API_KEY` and `NOTAM_AI_MODEL` in `backend\/\.env` to run the NOTAM AI pass\./i)).not.toBeInTheDocument();
   });
 
   it('opens the Pizza Index detail page from the sidebar', async () => {

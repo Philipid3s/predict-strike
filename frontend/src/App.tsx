@@ -14,6 +14,7 @@ import {
   getOpenSkyAnomalies,
   refreshGdeltSignal,
   refreshGdeltSource,
+  refreshNotamSignal,
   refreshPizzaIndex,
   refreshOpenSkySignal,
   refreshOpenSkySource,
@@ -30,6 +31,7 @@ import type {
   GdeltSignalAssessment,
   MarketOpportunity,
   NotamDetailResponse,
+  NotamSignalAssessment,
   OpenSkyAnomaliesResponse,
   OpenSkySignalAssessment,
   PizzaIndexSnapshotResponse,
@@ -210,6 +212,118 @@ function formatNotamWindow(start: string | null, end: string | null) {
   return 'Window unavailable';
 }
 
+function getNotamLocationContext(location: string | null) {
+  if (!location) {
+    return {
+      icao: 'Unknown',
+      fir: 'Unavailable',
+      country: 'Unavailable',
+    };
+  }
+
+  const normalized = location.trim().toUpperCase();
+  const exactHints: Record<string, { fir: string; country: string }> = {
+    CYOO: { fir: 'Toronto FIR', country: 'Canada' },
+    EGTT: { fir: 'London FIR', country: 'United Kingdom' },
+    KADW: { fir: 'Washington ARTCC / FIR', country: 'United States' },
+    KATL: { fir: 'Atlanta ARTCC / FIR', country: 'United States' },
+    KPAM: { fir: 'Anchorage Oceanic / FIR', country: 'United States' },
+    KZLC: { fir: 'Salt Lake City ARTCC / FIR', country: 'United States' },
+    LLBG: { fir: 'Tel Aviv FIR', country: 'Israel' },
+    OIYY: { fir: 'Tehran FIR', country: 'Iran' },
+    RJTT: { fir: 'Tokyo FIR', country: 'Japan' },
+    VOBZ: { fir: 'Chennai FIR', country: 'India' },
+  };
+
+  if (exactHints[normalized]) {
+    return {
+      icao: normalized,
+      fir: exactHints[normalized].fir,
+      country: exactHints[normalized].country,
+    };
+  }
+
+  const prefixHints: Array<{ prefix: string; fir: string; country: string }> = [
+    { prefix: 'K', fir: 'United States domestic FIR system', country: 'United States' },
+    { prefix: 'P', fir: 'United States Pacific FIR system', country: 'United States' },
+    { prefix: 'C', fir: 'Canadian FIR system', country: 'Canada' },
+    { prefix: 'EB', fir: 'Belgian FIR system', country: 'Belgium' },
+    { prefix: 'ED', fir: 'German FIR system', country: 'Germany' },
+    { prefix: 'EF', fir: 'Finnish FIR system', country: 'Finland' },
+    { prefix: 'EG', fir: 'United Kingdom FIR system', country: 'United Kingdom' },
+    { prefix: 'EH', fir: 'Dutch FIR system', country: 'Netherlands' },
+    { prefix: 'EI', fir: 'Irish FIR system', country: 'Ireland' },
+    { prefix: 'EK', fir: 'Danish FIR system', country: 'Denmark' },
+    { prefix: 'EN', fir: 'Norwegian FIR system', country: 'Norway' },
+    { prefix: 'EP', fir: 'Polish FIR system', country: 'Poland' },
+    { prefix: 'ES', fir: 'Swedish FIR system', country: 'Sweden' },
+    { prefix: 'ET', fir: 'German FIR system', country: 'Germany' },
+    { prefix: 'LC', fir: 'Cyprus FIR system', country: 'Cyprus' },
+    { prefix: 'LE', fir: 'Spanish FIR system', country: 'Spain' },
+    { prefix: 'LF', fir: 'French FIR system', country: 'France' },
+    { prefix: 'LG', fir: 'Greek FIR system', country: 'Greece' },
+    { prefix: 'LI', fir: 'Italian FIR system', country: 'Italy' },
+    { prefix: 'LK', fir: 'Czech FIR system', country: 'Czech Republic' },
+    { prefix: 'LL', fir: 'Israeli FIR system', country: 'Israel' },
+    { prefix: 'LR', fir: 'Romanian FIR system', country: 'Romania' },
+    { prefix: 'LT', fir: 'Turkish FIR system', country: 'Turkey' },
+    { prefix: 'LZ', fir: 'Slovak FIR system', country: 'Slovakia' },
+    { prefix: 'DA', fir: 'Algerian FIR system', country: 'Algeria' },
+    { prefix: 'DT', fir: 'Tunisian FIR system', country: 'Tunisia' },
+    { prefix: 'FA', fir: 'South African FIR system', country: 'South Africa' },
+    { prefix: 'HE', fir: 'Egyptian FIR system', country: 'Egypt' },
+    { prefix: 'OB', fir: 'Bahraini FIR system', country: 'Bahrain' },
+    { prefix: 'OE', fir: 'Saudi FIR system', country: 'Saudi Arabia' },
+    { prefix: 'OI', fir: 'Iranian FIR system', country: 'Iran' },
+    { prefix: 'OJ', fir: 'Jordanian FIR system', country: 'Jordan' },
+    { prefix: 'OK', fir: 'Kuwaiti FIR system', country: 'Kuwait' },
+    { prefix: 'OM', fir: 'UAE FIR system', country: 'United Arab Emirates' },
+    { prefix: 'OO', fir: 'Omani FIR system', country: 'Oman' },
+    { prefix: 'OR', fir: 'Iraqi FIR system', country: 'Iraq' },
+    { prefix: 'OS', fir: 'Syrian FIR system', country: 'Syria' },
+    { prefix: 'OT', fir: 'Qatari FIR system', country: 'Qatar' },
+    { prefix: 'RC', fir: 'Taiwan FIR system', country: 'Taiwan' },
+    { prefix: 'RJ', fir: 'Japanese FIR system', country: 'Japan' },
+    { prefix: 'RK', fir: 'South Korean FIR system', country: 'South Korea' },
+    { prefix: 'RP', fir: 'Philippine FIR system', country: 'Philippines' },
+    { prefix: 'VD', fir: 'Cambodian FIR system', country: 'Cambodia' },
+    { prefix: 'VG', fir: 'Bangladeshi FIR system', country: 'Bangladesh' },
+    { prefix: 'VH', fir: 'Hong Kong FIR system', country: 'Hong Kong' },
+    { prefix: 'VL', fir: 'Laotian FIR system', country: 'Laos' },
+    { prefix: 'VM', fir: 'Macau FIR system', country: 'Macau' },
+    { prefix: 'VN', fir: 'Nepalese FIR system', country: 'Nepal' },
+    { prefix: 'VO', fir: 'Indian FIR system', country: 'India' },
+    { prefix: 'VT', fir: 'Thai FIR system', country: 'Thailand' },
+    { prefix: 'VV', fir: 'Vietnamese FIR system', country: 'Vietnam' },
+    { prefix: 'VY', fir: 'Myanmar FIR system', country: 'Myanmar' },
+    { prefix: 'WA', fir: 'Indonesian FIR system', country: 'Indonesia' },
+    { prefix: 'WB', fir: 'Malaysian FIR system', country: 'Malaysia' },
+    { prefix: 'WI', fir: 'Indonesian FIR system', country: 'Indonesia' },
+    { prefix: 'WM', fir: 'Malaysian FIR system', country: 'Malaysia' },
+    { prefix: 'WS', fir: 'Singapore FIR system', country: 'Singapore' },
+    { prefix: 'Y', fir: 'Australian FIR system', country: 'Australia' },
+    { prefix: 'ZB', fir: 'Chinese FIR system', country: 'China' },
+    { prefix: 'ZG', fir: 'Chinese FIR system', country: 'China' },
+    { prefix: 'ZH', fir: 'Chinese FIR system', country: 'China' },
+    { prefix: 'ZJ', fir: 'Chinese FIR system', country: 'China' },
+    { prefix: 'ZK', fir: 'North Korean FIR system', country: 'North Korea' },
+    { prefix: 'ZL', fir: 'Chinese FIR system', country: 'China' },
+    { prefix: 'ZM', fir: 'Mongolian FIR system', country: 'Mongolia' },
+    { prefix: 'ZS', fir: 'Chinese FIR system', country: 'China' },
+    { prefix: 'ZU', fir: 'Chinese FIR system', country: 'China' },
+    { prefix: 'ZW', fir: 'Chinese FIR system', country: 'China' },
+    { prefix: 'ZY', fir: 'Chinese FIR system', country: 'China' },
+    { prefix: 'NZ', fir: 'New Zealand FIR system', country: 'New Zealand' },
+  ];
+
+  const match = prefixHints.find((hint) => normalized.startsWith(hint.prefix));
+  return {
+    icao: normalized,
+    fir: match?.fir ?? 'Unmapped FIR hint',
+    country: match?.country ?? 'Unmapped country hint',
+  };
+}
+
 function hasCoordinates(latitude: number | null, longitude: number | null) {
   return latitude !== null && longitude !== null;
 }
@@ -249,6 +363,7 @@ export default function App() {
   const [refreshingSourceName, setRefreshingSourceName] = useState<string | null>(null);
   const [isRefreshingOpenSkySignal, setIsRefreshingOpenSkySignal] = useState(false);
   const [isRefreshingGdeltSignal, setIsRefreshingGdeltSignal] = useState(false);
+  const [isRefreshingNotamSignal, setIsRefreshingNotamSignal] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [featureLogicSourceId, setFeatureLogicSourceId] = useState<'gdelt' | 'notam-feed' | 'opensky-network' | null>(null);
   const [selectedOpenSkyAnomalyId, setSelectedOpenSkyAnomalyId] = useState<string | null>(null);
@@ -580,6 +695,28 @@ export default function App() {
       setError(refreshError instanceof Error ? refreshError.message : 'Failed to refresh GDELT signal.');
     } finally {
       setIsRefreshingGdeltSignal(false);
+    }
+  }, [updateDashboardSnapshotRisk]);
+
+  const handleRefreshNotamSignal = useCallback(async () => {
+    setIsRefreshingNotamSignal(true);
+    setError(null);
+    setNotamError(null);
+    setActionMessage(null);
+
+    try {
+      const refreshed = await refreshNotamSignal();
+      await updateDashboardSnapshotRisk(refreshed.snapshot);
+      const latestDetail = await getNotamDetail();
+      setNotamDetail({
+        ...latestDetail,
+        assessment: latestDetail.assessment ?? refreshed.assessment,
+      });
+      setActionMessage('NOTAM Feed signal refreshed from the latest stored source snapshot.');
+    } catch (refreshError) {
+      setError(refreshError instanceof Error ? refreshError.message : 'Failed to refresh NOTAM Feed signal.');
+    } finally {
+      setIsRefreshingNotamSignal(false);
     }
   }, [updateDashboardSnapshotRisk]);
 
@@ -1532,10 +1669,15 @@ export default function App() {
   };
 
   const renderNotamSourceDetail = (sourceDefinition: SourceDefinition, source: SignalSource | null) => {
+    const notamAssessment: NotamSignalAssessment | null = notamDetail?.assessment ?? null;
+    const hasReadyNotamAssessment = typeof notamAssessment?.probability_percent === 'number';
     const featureValue =
+      (hasReadyNotamAssessment
+        ? notamAssessment.probability_percent / 100
+        : null) ??
       (dashboard.signals ? dashboard.signals.features.notam_spike : null) ?? notamDetail?.notam_spike ?? null;
     const topClassifications = notamDetail?.classification_breakdown ?? [];
-    const topLocations = notamDetail?.location_breakdown ?? [];
+    const topLocations = (notamDetail?.location_breakdown ?? []).slice(0, 6);
     const representativeNotices = notamDetail?.representative_notices ?? [];
 
     return (
@@ -1553,9 +1695,16 @@ export default function App() {
             <button
               className="button"
               onClick={() => void handleSourceDetailRefresh(sourceDefinition.name)}
-              disabled={refreshingSourceName === sourceDefinition.name}
+              disabled={refreshingSourceName === sourceDefinition.name || isRefreshingNotamSignal}
             >
               {refreshingSourceName === sourceDefinition.name ? 'Refreshing...' : 'Refresh Source'}
+            </button>
+            <button
+              className="button button--secondary"
+              onClick={() => void handleRefreshNotamSignal()}
+              disabled={isRefreshingNotamSignal || refreshingSourceName === sourceDefinition.name}
+            >
+              {isRefreshingNotamSignal ? 'Refreshing Signal...' : 'Refresh Signal'}
             </button>
           </div>
         </header>
@@ -1583,14 +1732,16 @@ export default function App() {
               source ? <StatusBadge tone={getSourceTone(source.status)}>{titleCase(source.status)}</StatusBadge> : undefined
             }
           />
-          <MetricCard
-            label="Signal Feature"
-            value={featureValue === null ? 'Unavailable' : formatPercent(featureValue)}
-            detail={
-              notamDetail
-                ? `${notamDetail.alert_notice_count} alert-weighted and ${notamDetail.restricted_notice_count} restricted notices are currently contributing.`
-                : 'Normalized NOTAM spike from the latest stored notice set.'
-            }
+            <MetricCard
+              label="Signal Feature"
+              value={featureValue === null ? 'Unavailable' : formatPercent(featureValue)}
+              detail={
+                hasReadyNotamAssessment
+                  ? 'Current AI probability returned by Refresh Signal.'
+                  : notamDetail
+                    ? `${notamDetail.alert_notice_count} alert-weighted and ${notamDetail.restricted_notice_count} restricted notices are currently contributing.`
+                    : 'Normalized NOTAM spike from the latest stored notice set.'
+              }
             action={
               <button
                 className="icon-help-button"
@@ -1645,6 +1796,32 @@ export default function App() {
             )}
           </SectionCard>
 
+          <SectionCard
+            title="AI Signal Assessment"
+            subtitle={`Latest NOTAM signal pass ${formatDateTime(dashboard.signals?.generated_at ?? source?.last_checked_at)}`}
+          >
+            {!notamAssessment ? (
+              <p className="empty-state">No AI signal assessment is available for the current NOTAM snapshot.</p>
+            ) : (
+              <div className="detail-stack">
+                <p>Status: {titleCase(notamAssessment.status)}</p>
+                <p>Assessed notices: {notamAssessment.assessed_notice_count}</p>
+                <p>Freshness score: {formatPercent(notamAssessment.freshness_score)}</p>
+                <p>Summary: {notamAssessment.summary}</p>
+                {hasReadyNotamAssessment ? (
+                  <>
+                    <p>Probability: {formatPercent(notamAssessment.probability_percent / 100)}</p>
+                    <p>Target region: {notamAssessment.target_region ?? 'Unavailable'}</p>
+                    <p>Target country: {notamAssessment.target_country ?? 'Unavailable'}</p>
+                  </>
+                ) : (
+                  <p>Enable `NOTAM_AI_API_KEY` and `NOTAM_AI_MODEL` in `backend/.env` to run the NOTAM AI pass.</p>
+                )}
+                <p>Prompt version: {notamAssessment.prompt_version}</p>
+              </div>
+            )}
+          </SectionCard>
+
           <SectionCard title="Classification Breakdown" subtitle="Current NOTAM mix by classification">
             {!notamDetail ? (
               <p className="empty-state">Loading classification distribution...</p>
@@ -1662,7 +1839,7 @@ export default function App() {
             )}
           </SectionCard>
 
-          <SectionCard title="Top Locations" subtitle="Highest-volume locations in the current feed">
+          <SectionCard title="Top Locations" subtitle="Highest-volume locations in military-relevant notices">
             {!notamDetail ? (
               <p className="empty-state">Loading location concentration...</p>
             ) : topLocations.length === 0 ? (
@@ -1671,7 +1848,7 @@ export default function App() {
               <div className="feature-grid">
                 {topLocations.map((item) => (
                   <div key={item.label} className="feature-tile">
-                    <span>{item.label}</span>
+                    <span>{item.label} · {getNotamLocationContext(item.label).country}</span>
                     <strong>{item.count}</strong>
                   </div>
                 ))}
@@ -1686,11 +1863,16 @@ export default function App() {
               <p className="empty-state">No representative notices are available for the current snapshot.</p>
             ) : (
               <div className="notam-notice-list">
-                {representativeNotices.map((notice) => (
+                {representativeNotices.map((notice) => {
+                  const locationContext = getNotamLocationContext(notice.location);
+                  return (
                   <article key={notice.notice_id} className="notam-notice-card">
                     <div className="notam-notice-card__header">
                       <div>
                         <strong>{notice.notice_id}</strong>
+                        <p>ICAO: {notice.icao_code ?? locationContext.icao}</p>
+                        <p>FIR: {notice.fir_name ?? locationContext.fir}</p>
+                        <p>Country: {notice.country_name ?? locationContext.country}</p>
                         <p>{notice.location ?? 'Unknown location'}{notice.classification ? ` · ${notice.classification}` : ''}</p>
                       </div>
                       <div className="notam-notice-card__flags">
@@ -1703,7 +1885,8 @@ export default function App() {
                       {formatNotamWindow(notice.effective_start, notice.effective_end)}
                     </p>
                   </article>
-                ))}
+                  );
+                })}
               </div>
             )}
           </SectionCard>

@@ -15,6 +15,7 @@ PizzaIndexProvider = Literal["pizzint", "serpapi", "stub"]
 PizzaIndexProviderMode = Literal["primary", "fallback", "stub"]
 OpenSkyAssessmentStatus = Literal["ready", "disabled", "error"]
 GdeltAssessmentStatus = Literal["ready", "disabled", "error"]
+NotamAssessmentStatus = Literal["ready", "disabled", "error"]
 
 
 class FeatureSet(BaseModel):
@@ -183,17 +184,33 @@ class GdeltDetailResponse(BaseModel):
 class NotamCountBreakdown(BaseModel):
     label: str
     count: int = Field(..., ge=0)
+    fir_name: str | None = None
+    country_name: str | None = None
 
 
 class NotamNoticeSummary(BaseModel):
     notice_id: str
     location: str | None = None
+    icao_code: str | None = None
+    fir_name: str | None = None
+    country_name: str | None = None
     classification: str | None = None
     text: str
     effective_start: datetime | None = None
     effective_end: datetime | None = None
     is_alert: bool
     is_restricted: bool
+
+
+class NotamSignalAssessment(BaseModel):
+    status: NotamAssessmentStatus
+    prompt_version: str
+    probability_percent: int | None = Field(default=None, ge=0, le=100)
+    target_region: str | None = None
+    target_country: str | None = None
+    summary: str
+    assessed_notice_count: int = Field(..., ge=0)
+    freshness_score: float = Field(..., ge=0.0, le=1.0)
 
 
 class NotamDetailResponse(BaseModel):
@@ -211,6 +228,12 @@ class NotamDetailResponse(BaseModel):
     location_breakdown: list[NotamCountBreakdown]
     representative_notices: list[NotamNoticeSummary]
     collector_fallback_reason: str | None = None
+
+
+class NotamSignalRefreshResponse(BaseModel):
+    source: SignalSource
+    snapshot: LatestSignalsResponse
+    assessment: NotamSignalAssessment
 
 
 class MarketOpportunity(BaseModel):

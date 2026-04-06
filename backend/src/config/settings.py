@@ -71,6 +71,10 @@ class Settings:
     notam_detail_fetch_enabled: bool
     notam_max_items: int
     notam_timeout_seconds: int
+    notam_ai_api_url: str | None
+    notam_ai_api_key: str | None
+    notam_ai_model: str | None
+    notam_ai_timeout_seconds: int
     gdelt_source_url: str | None
     gdelt_timeout_seconds: int
     gdelt_ai_api_url: str | None
@@ -144,6 +148,16 @@ def get_settings() -> Settings:
         notam_detail_fetch_enabled=notam_detail_fetch_enabled,
         notam_max_items=max(int(os.getenv("NOTAM_MAX_ITEMS", "20")), 1),
         notam_timeout_seconds=max(int(os.getenv("NOTAM_TIMEOUT_SECONDS", "10")), 1),
+        notam_ai_api_url=os.getenv(
+            "NOTAM_AI_API_URL",
+            "https://api.openai.com/v1/chat/completions",
+        ),
+        notam_ai_api_key=os.getenv("NOTAM_AI_API_KEY"),
+        notam_ai_model=os.getenv("NOTAM_AI_MODEL"),
+        notam_ai_timeout_seconds=max(
+            int(os.getenv("NOTAM_AI_TIMEOUT_SECONDS", "15")),
+            1,
+        ),
         gdelt_source_url=os.getenv("GDELT_SOURCE_URL"),
         gdelt_timeout_seconds=max(
             int(os.getenv("GDELT_TIMEOUT_SECONDS", "30")),
